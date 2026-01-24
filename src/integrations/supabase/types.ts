@@ -14,7 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      industry_contexts: {
+        Row: {
+          constraints: string[]
+          created_at: string
+          id: string
+          kpis: string[]
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          constraints?: string[]
+          created_at?: string
+          id?: string
+          kpis?: string[]
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          constraints?: string[]
+          created_at?: string
+          id?: string
+          kpis?: string[]
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      procurement_categories: {
+        Row: {
+          characteristics: string
+          created_at: string
+          id: string
+          kpis: string[]
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          characteristics: string
+          created_at?: string
+          id?: string
+          kpis?: string[]
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          characteristics?: string
+          created_at?: string
+          id?: string
+          kpis?: string[]
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
