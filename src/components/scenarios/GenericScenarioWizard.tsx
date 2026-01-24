@@ -14,6 +14,9 @@ import {
 } from "@/components/ui/select";
 import DataRequirementsAlert from "@/components/consolidation/DataRequirementsAlert";
 import StrategySelector, { StrategyType, strategyPresets } from "./StrategySelector";
+import { IndustrySelector } from "@/components/context/IndustrySelector";
+import { CategorySelector } from "@/components/context/CategorySelector";
+import { ContextPreview } from "@/components/context/ContextPreview";
 import {
   Scenario,
   ScenarioRequiredField,
@@ -31,6 +34,8 @@ const GenericScenarioWizard = ({ scenario }: GenericScenarioWizardProps) => {
   const [step, setStep] = useState<Step>("input");
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [strategyValue, setStrategyValue] = useState<StrategyType>("balanced");
+  const [industrySlug, setIndustrySlug] = useState<string | null>(null);
+  const [categorySlug, setCategorySlug] = useState<string | null>(null);
   const fieldRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const handleFieldChange = (fieldId: string, value: string) => {
@@ -170,6 +175,27 @@ const GenericScenarioWizard = ({ scenario }: GenericScenarioWizardProps) => {
                 for the analysis. Optional fields improve recommendation accuracy.
               </p>
             </div>
+
+            {/* Context Selectors for AI Grounding */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-lg border border-border bg-card/50">
+              <IndustrySelector
+                value={industrySlug}
+                onChange={setIndustrySlug}
+              />
+              <CategorySelector
+                value={categorySlug}
+                onChange={setCategorySlug}
+              />
+            </div>
+
+            {/* Context Preview */}
+            {(industrySlug || categorySlug) && (
+              <ContextPreview
+                industrySlug={industrySlug}
+                categorySlug={categorySlug}
+                showXML={true}
+              />
+            )}
 
             {/* Strategy Selector */}
             {scenario.strategySelector && (
