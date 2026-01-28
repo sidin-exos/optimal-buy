@@ -95,8 +95,23 @@ const Features = () => {
           </div>
         </section>
 
-        {/* Data Flow Section */}
+        {/* Sentinel Capabilities Section - MOVED BEFORE DATA FLOW */}
         <section className="mb-20 animate-fade-up" style={{ animationDelay: "300ms" }}>
+          <div className="text-center mb-10">
+            <h2 className="font-display text-2xl md:text-3xl font-bold mb-3">
+              Fine-Tuned <span className="text-gradient">AI Orchestration</span>
+            </h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              Our custom-trained intelligence layer validates, enriches, and orchestrates 
+              best-in-class cloud AI—ensuring every recommendation is grounded in your reality.
+            </p>
+          </div>
+          
+          <SentinelCapabilities />
+        </section>
+
+        {/* Data Flow Section */}
+        <section className="mb-16 animate-fade-up" style={{ animationDelay: "400ms" }}>
           <div className="text-center mb-10">
             <h2 className="font-display text-2xl md:text-3xl font-bold mb-3">
               Privacy-First <span className="text-gradient">Data Flow</span>
@@ -108,21 +123,6 @@ const Features = () => {
           </div>
           
           <DataFlowDiagram />
-        </section>
-
-        {/* Sentinel Capabilities Section */}
-        <section className="mb-16 animate-fade-up" style={{ animationDelay: "400ms" }}>
-          <div className="text-center mb-10">
-            <h2 className="font-display text-2xl md:text-3xl font-bold mb-3">
-              Local Intelligence <span className="text-gradient">Layer</span>
-            </h2>
-            <p className="text-muted-foreground max-w-xl mx-auto">
-              The EXOS Sentinel acts as your private gateway—encoding, grounding, validating, 
-              and decoding data without exposing sensitive details.
-            </p>
-          </div>
-          
-          <SentinelCapabilities />
         </section>
       </main>
     </div>
