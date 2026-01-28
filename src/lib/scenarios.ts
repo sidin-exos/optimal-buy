@@ -143,6 +143,104 @@ export const scenarios: Scenario[] = [
     outputs: ["Emergency Map: Step-by-step supply chain recovery algorithm", "Impact Table: Financial losses under different delay scenarios", "Draft Letter: Claim letter or partner assistance request"],
   },
   {
+    id: "risk-assessment",
+    title: "Risk Assessment",
+    description:
+      "Comprehensive risk analysis combining industry dynamics, contract risks, and real-time market situation assessment.",
+    icon: Shield,
+    status: "available",
+    category: "risk",
+    strategySelector: "costVsRisk",
+    requiredFields: [
+      { id: "industryContext", label: "Industry & Business Context", description: "Describe your industry, regulatory environment, and risk management maturity", type: "textarea", required: true, placeholder: "E.g., 'Pharmaceutical manufacturing in EU. Strict GMP requirements. Multi-tier supply chains with API suppliers in Asia...'" },
+      { id: "assessmentSubject", label: "Assessment Subject", description: "What supplier, category, or project are you assessing?", type: "text", required: true },
+      { id: "annualValue", label: "Annual Value at Risk", description: "Total annual spend or value exposed", type: "currency", required: true },
+      // Industry Analysis
+      { id: "marketVolatility", label: "Market Volatility", description: "How volatile is the supplier market?", type: "select", required: true, options: ["Stable", "Moderate", "Volatile", "Highly Volatile"] },
+      { id: "regulatoryExposure", label: "Regulatory Exposure", description: "Level of regulatory oversight in the supply chain", type: "select", required: true, options: ["Minimal", "Moderate", "High", "Critical"] },
+      { id: "geopoliticalRisk", label: "Geopolitical Risk", description: "Exposure to geopolitical instability", type: "select", required: true, options: ["Low", "Medium", "High", "Critical"] },
+      { id: "commodityDependency", label: "Commodity Dependency", description: "Reliance on volatile commodity inputs", type: "select", required: false, options: ["None", "Low", "Moderate", "High"] },
+      // Contract Analysis (Simplified)
+      { id: "contractType", label: "Contract Type", description: "Current contractual arrangement", type: "select", required: true, options: ["Spot/No Contract", "Short-term (<1yr)", "Medium-term (1-3yr)", "Long-term (3+yr)"] },
+      { id: "liabilityProtection", label: "Liability Protection", description: "Level of contractual protection", type: "select", required: true, options: ["Comprehensive", "Standard", "Limited", "None"] },
+      { id: "terminationRights", label: "Termination Rights", description: "Ease of contract exit", type: "select", required: true, options: ["Flexible", "Moderate Notice", "Restrictive", "Locked In"] },
+      { id: "priceAdjustmentMechanism", label: "Price Adjustment Clause", description: "How are price changes handled?", type: "select", required: false, options: ["Fixed", "Index-linked", "Negotiable", "Supplier Discretion"] },
+      // Current Situation (Search-grounded)
+      { id: "currentChallenges", label: "Current Market Challenges", description: "What specific issues are affecting this market/supplier now?", type: "textarea", required: true, placeholder: "E.g., 'Chip shortage affecting lead times. Supplier recently announced capacity expansion. Raw material prices up 15%...'" },
+      { id: "supplierFinancialHealth", label: "Supplier Financial Health", description: "Current financial stability assessment", type: "select", required: true, options: ["Strong", "Stable", "Concerning", "At Risk"] },
+      { id: "supplyChainVisibility", label: "Supply Chain Visibility", description: "How much visibility do you have into sub-tiers?", type: "select", required: false, options: ["Full Visibility", "Tier 1 Only", "Limited", "None"] },
+      { id: "recentIncidents", label: "Recent Incidents", description: "Any recent quality, delivery, or compliance issues?", type: "textarea", required: false, placeholder: "E.g., '2 late deliveries last quarter. Minor quality issue resolved. No compliance violations...'" },
+      // Risk Tolerance
+      { id: "businessCriticality", label: "Business Criticality", description: "Impact if supply fails", type: "select", required: true, options: ["Low", "Medium", "High", "Mission Critical"] },
+      { id: "recoveryTime", label: "Acceptable Recovery Time", description: "Maximum tolerable disruption", type: "select", required: true, options: ["Hours", "Days", "Weeks", "Months"] },
+    ],
+    outputs: [
+      "Risk Heat Map: Visual probability vs impact assessment",
+      "Industry Risk Brief: Market dynamics and trend analysis",
+      "Contract Risk Score: Contractual protection assessment",
+      "Current Situation Summary: Real-time risk factors with source citations",
+      "Mitigation Roadmap: Prioritized actions to reduce exposure",
+      "Monitoring Dashboard: Key risk indicators to track",
+      "Scenario Analysis: Best/worst/likely case outcomes",
+    ],
+  },
+  {
+    id: "tco-analysis",
+    title: "Total Cost of Ownership",
+    description:
+      "Comprehensive lifecycle cost analysis for complex purchases including acquisition, operation, risks, and exit costs.",
+    icon: Calculator,
+    status: "available",
+    category: "analysis",
+    strategySelector: "thoroughness",
+    requiredFields: [
+      { id: "industryContext", label: "Industry & Business Context", description: "Describe your industry, asset management practices, and typical ownership periods", type: "textarea", required: true, placeholder: "E.g., 'Manufacturing plant modernization. Assets typically 10-15 year lifecycle. Strong focus on OEE and uptime. Limited in-house maintenance capability...'" },
+      { id: "assetDescription", label: "Asset/Purchase Description", description: "What are you evaluating?", type: "text", required: true },
+      { id: "ownershipPeriod", label: "Ownership Period (Years)", description: "Expected useful life or evaluation period", type: "number", required: true },
+      // Acquisition Costs
+      { id: "purchasePrice", label: "Purchase/Acquisition Price", description: "Base purchase cost", type: "currency", required: true },
+      { id: "installationCost", label: "Installation & Setup Cost", description: "Delivery, installation, commissioning", type: "currency", required: true },
+      { id: "trainingCost", label: "Training Cost", description: "Staff training and certification", type: "currency", required: false },
+      { id: "integrationCost", label: "Integration Cost", description: "Systems integration, customization", type: "currency", required: false },
+      // Operating Costs
+      { id: "annualMaintenance", label: "Annual Maintenance Cost", description: "Regular maintenance and service contracts", type: "currency", required: true },
+      { id: "energyConsumption", label: "Annual Energy Cost", description: "Power, fuel, utilities consumption", type: "currency", required: true },
+      { id: "consumablesCost", label: "Annual Consumables Cost", description: "Spare parts, supplies, materials", type: "currency", required: false },
+      { id: "laborCost", label: "Annual Operating Labor Cost", description: "Staff time to operate", type: "currency", required: false },
+      { id: "insuranceCost", label: "Annual Insurance Cost", description: "Asset insurance premiums", type: "currency", required: false },
+      // Vendor Lock-in Analysis
+      { id: "vendorLockInRisk", label: "Vendor Lock-in Risk", description: "Dependency on single vendor for support/parts", type: "select", required: true, options: ["None", "Low", "Moderate", "High", "Critical"] },
+      { id: "proprietaryComponents", label: "Proprietary Components %", description: "Percentage of proprietary vs standard parts", type: "percentage", required: true },
+      { id: "alternativeSuppliers", label: "Alternative Service Providers", description: "Availability of third-party maintenance", type: "select", required: true, options: ["Many", "Some", "Few", "None"] },
+      { id: "dataPortability", label: "Data Portability", description: "Ease of migrating data/configurations", type: "select", required: false, options: ["Full Export", "Partial", "Difficult", "Locked In"] },
+      // Long-term Market Factors
+      { id: "technologyObsolescence", label: "Technology Obsolescence Risk", description: "Risk of technology becoming outdated", type: "select", required: true, options: ["Low", "Medium", "High", "Imminent"] },
+      { id: "marketPriceTrend", label: "Market Price Trend", description: "Expected future price direction for this category", type: "select", required: true, options: ["Decreasing", "Stable", "Increasing", "Volatile"] },
+      { id: "regulatoryChanges", label: "Regulatory Change Risk", description: "Risk of new regulations affecting asset", type: "select", required: false, options: ["Minimal", "Possible", "Likely", "Certain"] },
+      // Macroeconomic Factors
+      { id: "inflationAssumption", label: "Inflation Assumption %", description: "Expected annual inflation rate", type: "percentage", required: true },
+      { id: "currencyExposure", label: "Currency Exposure", description: "Foreign currency risk for ongoing costs", type: "select", required: false, options: ["None", "Low", "Moderate", "High"] },
+      { id: "interestRate", label: "Financing Rate %", description: "Cost of capital or financing rate", type: "percentage", required: true },
+      // Exit Costs
+      { id: "residualValue", label: "Expected Residual Value", description: "Asset value at end of ownership", type: "currency", required: true },
+      { id: "decommissioningCost", label: "Decommissioning Cost", description: "Removal, disposal, remediation costs", type: "currency", required: false },
+      { id: "dataMigrationCost", label: "Data Migration Cost", description: "Cost to transfer data to new system", type: "currency", required: false },
+      // Risk Factors
+      { id: "downtimeRisk", label: "Downtime Risk", description: "Expected reliability and uptime", type: "select", required: true, options: ["Very High (99%+)", "High (97-99%)", "Moderate (95-97%)", "Low (<95%)"] },
+      { id: "downtimeCostPerHour", label: "Downtime Cost Per Hour", description: "Business impact of unplanned downtime", type: "currency", required: true },
+    ],
+    outputs: [
+      "TCO Waterfall Chart: Visual breakdown of all cost components",
+      "NPV Comparison: Present value across ownership period",
+      "Vendor Lock-in Score: Assessment with mitigation strategies",
+      "Risk-adjusted TCO: Costs including probability-weighted risks",
+      "Sensitivity Analysis: Impact of key variable changes",
+      "Market Scenario Modeling: Best/worst case projections",
+      "Break-even Analysis: When does ownership become cost-effective",
+      "Decision Recommendation: AI-powered buy/lease/defer guidance",
+    ],
+  },
+  {
     id: "risk-matrix",
     title: "Risk Matrix",
     description:
