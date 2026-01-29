@@ -82,15 +82,27 @@ export function useSentinel(options: UseSentinelOptions = {}) {
 
         const inferenceStart = performance.now();
 
+        // Extract metadata from stages for test logging
+        const anonymizationStage = context.stages.find(s => s.stage === 'anonymization');
+        const groundingStage = context.stages.find(s => s.stage === 'grounding');
+
         const { data, error: functionError } = await supabase.functions.invoke(
           "sentinel-analysis",
           {
             body: {
               systemPrompt: inferencePayload.systemPrompt,
               userPrompt: inferencePayload.userPrompt,
-              model: inferencePayload.model,
+              model: "google/gemini-3-flash-preview", // Use Gemini 3 Flash for testing
               useLocalModel: inferencePayload.useLocal,
               stream: false,
+              // Testing metadata for database logging
+              scenarioType,
+              scenarioData,
+              industrySlug: industry?.slug || null,
+              categorySlug: category?.slug || null,
+              groundingContext: groundingStage?.details || null,
+              anonymizationMetadata: anonymizationStage?.details || null,
+              enableTestLogging: true,
             },
           }
         );

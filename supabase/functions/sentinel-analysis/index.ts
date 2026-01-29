@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,10 +11,9 @@ const corsHeaders = {
  * 
  * Processes procurement analysis requests through the full pipeline:
  * 1. Receives pre-processed (anonymized + grounded) context from client
- * 2. Calls AI gateway with grounded prompt
- * 3. Returns response for client-side validation and de-anonymization
- * 
- * Future: Support for local Mistral model endpoint
+ * 2. Calls AI gateway with grounded prompt (Gemini 3 Flash)
+ * 3. Logs prompts and responses to testing database
+ * 4. Returns response for client-side validation and de-anonymization
  */
 
 interface AnalysisRequest {
@@ -23,6 +23,14 @@ interface AnalysisRequest {
   useLocalModel?: boolean;
   localModelEndpoint?: string;
   stream?: boolean;
+  // Testing metadata
+  scenarioType?: string;
+  scenarioData?: Record<string, unknown>;
+  industrySlug?: string | null;
+  categorySlug?: string | null;
+  groundingContext?: Record<string, unknown>;
+  anonymizationMetadata?: Record<string, unknown>;
+  enableTestLogging?: boolean;
 }
 
 serve(async (req) => {
@@ -35,10 +43,18 @@ serve(async (req) => {
     const { 
       systemPrompt, 
       userPrompt, 
-      model = "google/gemini-3-flash-preview",
+      model = "google/gemini-3-flash-preview", // Default to Gemini 3 Flash
       useLocalModel = false,
       localModelEndpoint,
-      stream = false
+      stream = false,
+      // Testing metadata
+      scenarioType,
+      scenarioData,
+      industrySlug,
+      categorySlug,
+      groundingContext,
+      anonymizationMetadata,
+      enableTestLogging = true
     }: AnalysisRequest = await req.json();
 
     // Validate required fields
@@ -49,12 +65,49 @@ serve(async (req) => {
       );
     }
 
+    // Initialize Supabase client for test logging
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabase = supabaseUrl && supabaseKey 
+      ? createClient(supabaseUrl, supabaseKey)
+      : null;
+
+    let promptId: string | null = null;
+    const startTime = performance.now();
+
+    // Log the prompt to testing database
+    if (enableTestLogging && supabase && scenarioType) {
+      try {
+        const { data: promptData, error: promptError } = await supabase
+          .from("test_prompts")
+          .insert({
+            scenario_type: scenarioType,
+            scenario_data: scenarioData || {},
+            industry_slug: industrySlug,
+            category_slug: categorySlug,
+            system_prompt: systemPrompt,
+            user_prompt: userPrompt,
+            grounding_context: groundingContext,
+            anonymization_metadata: anonymizationMetadata
+          })
+          .select("id")
+          .single();
+
+        if (promptError) {
+          console.error("[Sentinel] Failed to log prompt:", promptError);
+        } else {
+          promptId = promptData.id;
+          console.log(`[Sentinel] Logged prompt: ${promptId}`);
+        }
+      } catch (logError) {
+        console.error("[Sentinel] Prompt logging error:", logError);
+      }
+    }
+
     // Future: Route to local Mistral model if configured
     if (useLocalModel && localModelEndpoint) {
       console.log(`[Sentinel] Routing to local model at ${localModelEndpoint}`);
       
-      // Placeholder for local model call
-      // When Mistral is deployed, implement the call here
       return new Response(
         JSON.stringify({ 
           error: "Local model endpoint not yet implemented",
@@ -62,37 +115,6 @@ serve(async (req) => {
         }),
         { status: 501, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
-      
-      /*
-      // Example local model call (uncomment when ready):
-      const localResponse = await fetch(localModelEndpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "mistral-small",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt }
-          ],
-          temperature: 0.3,
-          max_tokens: 4096
-        })
-      });
-      
-      if (!localResponse.ok) {
-        throw new Error(`Local model error: ${localResponse.status}`);
-      }
-      
-      const localData = await localResponse.json();
-      return new Response(
-        JSON.stringify({
-          content: localData.choices?.[0]?.message?.content || "",
-          model: "mistral-small-local",
-          source: "local"
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-      */
     }
 
     // Call Lovable AI Gateway
@@ -106,7 +128,8 @@ serve(async (req) => {
     }
 
     console.log(`[Sentinel] Calling AI gateway with model: ${model}`);
-    console.log(`[Sentinel] Prompt length: ${userPrompt.length} chars`);
+    console.log(`[Sentinel] System prompt length: ${systemPrompt.length} chars`);
+    console.log(`[Sentinel] User prompt length: ${userPrompt.length} chars`);
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -120,15 +143,30 @@ serve(async (req) => {
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
         ],
-        temperature: 0.4, // Lower temperature for more consistent procurement analysis
+        temperature: 0.4,
         max_tokens: 4096,
         stream
       }),
     });
 
+    const processingTime = Math.round(performance.now() - startTime);
+
     // Handle rate limits and payment required
     if (aiResponse.status === 429) {
       console.warn("[Sentinel] Rate limit exceeded");
+      
+      // Log error to test reports
+      if (enableTestLogging && supabase && promptId) {
+        await supabase.from("test_reports").insert({
+          prompt_id: promptId,
+          model,
+          raw_response: "",
+          processing_time_ms: processingTime,
+          success: false,
+          error_message: "Rate limit exceeded"
+        });
+      }
+      
       return new Response(
         JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
         { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -137,6 +175,18 @@ serve(async (req) => {
 
     if (aiResponse.status === 402) {
       console.warn("[Sentinel] Payment required");
+      
+      if (enableTestLogging && supabase && promptId) {
+        await supabase.from("test_reports").insert({
+          prompt_id: promptId,
+          model,
+          raw_response: "",
+          processing_time_ms: processingTime,
+          success: false,
+          error_message: "Payment required"
+        });
+      }
+      
       return new Response(
         JSON.stringify({ error: "AI usage limit reached. Please add credits to continue." }),
         { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -146,6 +196,18 @@ serve(async (req) => {
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
       console.error(`[Sentinel] AI gateway error: ${aiResponse.status}`, errorText);
+      
+      if (enableTestLogging && supabase && promptId) {
+        await supabase.from("test_reports").insert({
+          prompt_id: promptId,
+          model,
+          raw_response: errorText,
+          processing_time_ms: processingTime,
+          success: false,
+          error_message: `AI gateway error: ${aiResponse.status}`
+        });
+      }
+      
       return new Response(
         JSON.stringify({ error: "AI gateway error", details: errorText }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -164,13 +226,33 @@ serve(async (req) => {
     const content = data.choices?.[0]?.message?.content || "";
     
     console.log(`[Sentinel] Response received: ${content.length} chars`);
+    console.log(`[Sentinel] Processing time: ${processingTime}ms`);
+
+    // Log successful response to test reports
+    if (enableTestLogging && supabase && promptId) {
+      try {
+        await supabase.from("test_reports").insert({
+          prompt_id: promptId,
+          model,
+          raw_response: content,
+          processing_time_ms: processingTime,
+          token_usage: data.usage || null,
+          success: true
+        });
+        console.log(`[Sentinel] Logged report for prompt: ${promptId}`);
+      } catch (reportError) {
+        console.error("[Sentinel] Failed to log report:", reportError);
+      }
+    }
 
     return new Response(
       JSON.stringify({
         content,
         model,
         source: "cloud",
-        usage: data.usage
+        usage: data.usage,
+        promptId, // Return for client-side reference
+        processingTimeMs: processingTime
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
