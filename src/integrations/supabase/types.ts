@@ -74,6 +74,95 @@ export type Database = {
         }
         Relationships: []
       }
+      test_prompts: {
+        Row: {
+          anonymization_metadata: Json | null
+          category_slug: string | null
+          created_at: string
+          grounding_context: Json | null
+          id: string
+          industry_slug: string | null
+          scenario_data: Json
+          scenario_type: string
+          system_prompt: string
+          user_prompt: string
+        }
+        Insert: {
+          anonymization_metadata?: Json | null
+          category_slug?: string | null
+          created_at?: string
+          grounding_context?: Json | null
+          id?: string
+          industry_slug?: string | null
+          scenario_data?: Json
+          scenario_type: string
+          system_prompt: string
+          user_prompt: string
+        }
+        Update: {
+          anonymization_metadata?: Json | null
+          category_slug?: string | null
+          created_at?: string
+          grounding_context?: Json | null
+          id?: string
+          industry_slug?: string | null
+          scenario_data?: Json
+          scenario_type?: string
+          system_prompt?: string
+          user_prompt?: string
+        }
+        Relationships: []
+      }
+      test_reports: {
+        Row: {
+          created_at: string
+          deanonymized_response: string | null
+          error_message: string | null
+          id: string
+          model: string
+          processing_time_ms: number | null
+          prompt_id: string
+          raw_response: string
+          success: boolean
+          token_usage: Json | null
+          validation_result: Json | null
+        }
+        Insert: {
+          created_at?: string
+          deanonymized_response?: string | null
+          error_message?: string | null
+          id?: string
+          model: string
+          processing_time_ms?: number | null
+          prompt_id: string
+          raw_response: string
+          success?: boolean
+          token_usage?: Json | null
+          validation_result?: Json | null
+        }
+        Update: {
+          created_at?: string
+          deanonymized_response?: string | null
+          error_message?: string | null
+          id?: string
+          model?: string
+          processing_time_ms?: number | null
+          prompt_id?: string
+          raw_response?: string
+          success?: boolean
+          token_usage?: Json | null
+          validation_result?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_reports_prompt_id_fkey"
+            columns: ["prompt_id"]
+            isOneToOne: false
+            referencedRelation: "test_prompts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
