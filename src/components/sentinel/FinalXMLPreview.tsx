@@ -85,6 +85,7 @@ function SummarizedPreview({
 
   return (
     <div className="space-y-4">
+      {/* Row 1: Scenario, Grounding, Anonymization */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -131,6 +132,49 @@ function SummarizedPreview({
         </div>
       </div>
 
+      {/* Row 2: LLM Configuration */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-3 rounded-md bg-muted/30 border border-border">
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            LLM Settings
+          </p>
+          <div className="flex flex-wrap gap-1">
+            <Badge variant="outline" className="text-xs">
+              <CheckCircle className="h-3 w-3 mr-1 text-green-500" />
+              Temp: 0.2
+            </Badge>
+            <Badge variant="outline" className="text-xs">
+              <CheckCircle className="h-3 w-3 mr-1 text-green-500" />
+              Anti-Hallucination
+            </Badge>
+          </div>
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Chain-of-Experts
+          </p>
+          <div className="flex items-center gap-1 text-xs">
+            <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary">Auditor</span>
+            <span className="text-muted-foreground">→</span>
+            <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary">Optimizer</span>
+            <span className="text-muted-foreground">→</span>
+            <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary">Strategist</span>
+            <span className="text-muted-foreground">→</span>
+            <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary">Validator</span>
+          </div>
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Output Mode
+          </p>
+          <div className="flex flex-wrap gap-1">
+            <Badge variant="outline" className="text-xs">Quantitative</Badge>
+            <Badge variant="outline" className="text-xs">Conservative</Badge>
+          </div>
+        </div>
+      </div>
+
+      {/* Row 3: User Input Fields */}
       <div className="space-y-2">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
           User Input Fields ({filledFields.length})
@@ -154,8 +198,8 @@ function SummarizedPreview({
 
       <div className="p-2 rounded-md bg-primary/5 border border-primary/20">
         <p className="text-xs text-muted-foreground">
-          <strong>AI Context Grounding</strong> is embedded as a sub-function. 
-          Switch to XML view to see the full prompt structure.
+          <strong>Loop-back enabled:</strong> Validator → Auditor on inconsistency. 
+          Switch to Full XML to see complete prompt structure.
         </p>
       </div>
     </div>
