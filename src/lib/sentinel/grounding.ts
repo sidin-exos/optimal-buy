@@ -204,6 +204,47 @@ export function generateGroundedPrompt(
   parts.push('</anonymized-user-query>');
   parts.push('');
   
+  // Add LLM configuration settings
+  parts.push('<llm-configuration>');
+  parts.push('  <!-- Precision Mode: Low temperature for factual, consistent outputs -->');
+  parts.push('  <temperature value="0.2" mode="precise">');
+  parts.push('    Minimize creativity and speculation. Prioritize factual accuracy.');
+  parts.push('  </temperature>');
+  parts.push('');
+  parts.push('  <!-- Chain-of-Experts Protocol: Multi-agent validation loop -->');
+  parts.push('  <chain-of-experts mode="sequential-validation">');
+  parts.push('    <expert role="Auditor" order="1">');
+  parts.push('      Verify data accuracy, check for inconsistencies, flag missing information');
+  parts.push('    </expert>');
+  parts.push('    <expert role="Optimizer" order="2">');
+  parts.push('      Identify savings opportunities, suggest efficiency improvements, quantify impact');
+  parts.push('    </expert>');
+  parts.push('    <expert role="Strategist" order="3">');
+  parts.push('      Develop negotiation strategy, assess risks, prioritize recommendations');
+  parts.push('    </expert>');
+  parts.push('    <expert role="Validator" order="4">');
+  parts.push('      Cross-check recommendations against benchmarks, ensure logical consistency');
+  parts.push('    </expert>');
+  parts.push('    <loop-back trigger="inconsistency-detected" target="Auditor" />');
+  parts.push('  </chain-of-experts>');
+  parts.push('');
+  parts.push('  <!-- Anti-Hallucination Safeguards -->');
+  parts.push('  <anti-hallucination mode="strict">');
+  parts.push('    <rule>Only cite specific data points from provided context</rule>');
+  parts.push('    <rule>Flag uncertainty explicitly with confidence levels</rule>');
+  parts.push('    <rule>Distinguish between facts and inferences</rule>');
+  parts.push('    <rule>Reject requests requiring external knowledge not provided</rule>');
+  parts.push('  </anti-hallucination>');
+  parts.push('');
+  parts.push('  <!-- Output Constraints -->');
+  parts.push('  <output-constraints>');
+  parts.push('    <quantitative-focus>Provide numerical estimates with ranges where applicable</quantitative-focus>');
+  parts.push('    <conservative-assumptions>Err on cautious side for savings projections</conservative-assumptions>');
+  parts.push('    <source-citation>Reference specific data points from input</source-citation>');
+  parts.push('  </output-constraints>');
+  parts.push('</llm-configuration>');
+  parts.push('');
+  
   // Add processing instructions
   parts.push('<processing-instructions>');
   parts.push('  <instruction>Analyze the query using provided industry and category context</instruction>');
@@ -212,6 +253,7 @@ export function generateGroundedPrompt(
   parts.push('  <instruction>Maintain all masked tokens exactly as provided (e.g., [SUPPLIER_A], [AMOUNT_B])</instruction>');
   parts.push('  <instruction>Do not attempt to guess or reveal masked information</instruction>');
   parts.push('  <instruction>Structure response with clear sections: Analysis, Recommendations, Risks, Next Steps</instruction>');
+  parts.push('  <instruction>Apply Chain-of-Experts validation before finalizing output</instruction>');
   parts.push('</processing-instructions>');
   parts.push('');
   

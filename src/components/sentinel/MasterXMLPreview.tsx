@@ -42,27 +42,16 @@ function generateMasterTemplate(scenarioType: string): string {
       <!-- Additional fields populated from form -->
     </user-input>
 
-    <cross-reference-instructions>
-      <instruction>Cross-reference user inputs with industry constraints</instruction>
-      <instruction>Identify opportunities based on category benchmarks</instruction>
-      <instruction>Suggest best practices from analogous categories</instruction>
-      <instruction>Provide quantified recommendations where KPIs allow</instruction>
-    </cross-reference-instructions>
-
   </analysis-context>
 
   <!-- Historical Context (from vector DB) -->
   <historical-context>
-    <case id="{case_id}" relevance="{score}">
-      {historical_case_content}
-    </case>
+    <case id="{case_id}" relevance="{score}">{content}</case>
   </historical-context>
 
   <!-- Benchmark Context (from reference DB) -->
   <benchmark-context>
-    <benchmark id="{bench_id}" relevance="{score}">
-      {benchmark_content}
-    </benchmark>
+    <benchmark id="{bench_id}" relevance="{score}">{content}</benchmark>
   </benchmark-context>
 
   <!-- Anonymized User Query -->
@@ -70,13 +59,54 @@ function generateMasterTemplate(scenarioType: string): string {
     {anonymized_input_with_masked_tokens}
   </anonymized-user-query>
 
+  <!-- LLM Configuration Settings -->
+  <llm-configuration>
+    
+    <!-- Precision Mode: Low temperature for factual outputs -->
+    <temperature value="0.2" mode="precise">
+      Minimize creativity and speculation. Prioritize factual accuracy.
+    </temperature>
+
+    <!-- Chain-of-Experts Protocol -->
+    <chain-of-experts mode="sequential-validation">
+      <expert role="Auditor" order="1">
+        Verify data accuracy, check inconsistencies, flag missing info
+      </expert>
+      <expert role="Optimizer" order="2">
+        Identify savings, suggest improvements, quantify impact
+      </expert>
+      <expert role="Strategist" order="3">
+        Develop negotiation strategy, assess risks, prioritize actions
+      </expert>
+      <expert role="Validator" order="4">
+        Cross-check against benchmarks, ensure logical consistency
+      </expert>
+      <loop-back trigger="inconsistency-detected" target="Auditor" />
+    </chain-of-experts>
+
+    <!-- Anti-Hallucination Safeguards -->
+    <anti-hallucination mode="strict">
+      <rule>Only cite specific data points from provided context</rule>
+      <rule>Flag uncertainty with confidence levels</rule>
+      <rule>Distinguish facts from inferences</rule>
+      <rule>Reject requests requiring external knowledge</rule>
+    </anti-hallucination>
+
+    <!-- Output Constraints -->
+    <output-constraints>
+      <quantitative-focus>Numerical estimates with ranges</quantitative-focus>
+      <conservative-assumptions>Cautious savings projections</conservative-assumptions>
+      <source-citation>Reference specific input data points</source-citation>
+    </output-constraints>
+    
+  </llm-configuration>
+
   <!-- Processing Instructions -->
   <processing-instructions>
-    <instruction>Analyze query using industry and category context</instruction>
-    <instruction>Reference historical cases when making recommendations</instruction>
-    <instruction>Quantify recommendations using provided benchmarks</instruction>
+    <instruction>Apply Chain-of-Experts validation loop</instruction>
+    <instruction>Reference historical cases and benchmarks</instruction>
     <instruction>Maintain all masked tokens exactly as provided</instruction>
-    <instruction>Structure response: Analysis, Recommendations, Risks, Next Steps</instruction>
+    <instruction>Structure: Analysis, Recommendations, Risks, Next Steps</instruction>
   </processing-instructions>
 
 </grounded-analysis-request>`;
@@ -98,38 +128,59 @@ function TemplatePreviewContent({ scenarioType }: { scenarioType: string }) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">Core Components</p>
+          <p className="text-xs font-medium text-muted-foreground">Context Layers</p>
           <ul className="text-xs space-y-1">
             <li className="flex items-start gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-              <span>Grounding Reference (industry + category)</span>
+              <span>Grounding (industry + category)</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-              <span>User Input Fields</span>
+              <span>Historical Cases</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-              <span>Cross-Reference Instructions</span>
+              <span>Benchmark Data</span>
             </li>
           </ul>
         </div>
         <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">Enrichment Layers</p>
+          <p className="text-xs font-medium text-muted-foreground">LLM Settings</p>
           <ul className="text-xs space-y-1">
             <li className="flex items-start gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-accent mt-1.5 shrink-0" />
-              <span>Historical Cases (vector search)</span>
+              <span>Temperature: 0.2 (Precise)</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-accent mt-1.5 shrink-0" />
-              <span>Benchmark Data</span>
+              <span>Anti-Hallucination: Strict</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-accent mt-1.5 shrink-0" />
-              <span>Processing Instructions</span>
+              <span>Output: Quantitative Focus</span>
+            </li>
+          </ul>
+        </div>
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">Chain-of-Experts</p>
+          <ul className="text-xs space-y-1">
+            <li className="flex items-start gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 shrink-0" />
+              <span>1. Auditor → Verify data</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 shrink-0" />
+              <span>2. Optimizer → Find savings</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 shrink-0" />
+              <span>3. Strategist → Plan actions</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 shrink-0" />
+              <span>4. Validator → Cross-check</span>
             </li>
           </ul>
         </div>
@@ -137,8 +188,8 @@ function TemplatePreviewContent({ scenarioType }: { scenarioType: string }) {
 
       <div className="p-2 rounded-md bg-muted/50 border border-border">
         <p className="text-xs text-muted-foreground">
-          <strong>Note:</strong> AI Context Grounding (industry constraints, KPIs, category characteristics) 
-          is embedded as a sub-function reference to keep the template readable.
+          <strong>Loop-back:</strong> If Validator detects inconsistency → returns to Auditor for re-verification.
+          AI Context Grounding is embedded as a sub-function reference.
         </p>
       </div>
     </div>
