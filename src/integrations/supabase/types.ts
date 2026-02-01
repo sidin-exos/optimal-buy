@@ -74,6 +74,27 @@ export type Database = {
         }
         Relationships: []
       }
+      shared_reports: {
+        Row: {
+          created_at: string
+          expires_at: string
+          payload: Json
+          share_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          payload: Json
+          share_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          payload?: Json
+          share_id?: string
+        }
+        Relationships: []
+      }
       test_prompts: {
         Row: {
           anonymization_metadata: Json | null
@@ -168,7 +189,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_shared_report: {
+        Args: { p_expires_at: string; p_payload: Json; p_share_id: string }
+        Returns: undefined
+      }
+      get_shared_report: { Args: { p_share_id: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
