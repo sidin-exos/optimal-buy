@@ -7,10 +7,7 @@ import {
   Image,
 } from "@react-pdf/renderer";
 import exosLogo from "@/assets/logo-concept-layers.png";
-
-// Note: Avoid remote font registration in the browser PDF renderer.
-// Using built-in PDF fonts prevents "Unknown font format" failures when remote font URLs 404
-// or return unsupported formats.
+import { PDFDashboardVisuals } from "./PDFDashboardVisuals";
 
 // EXOS Corporate Colors
 const colors = {
@@ -261,7 +258,7 @@ const styles = StyleSheet.create({
   },
 });
 
-import { DashboardType, dashboardConfigs } from "@/lib/dashboard-mappings";
+import { DashboardType } from "@/lib/dashboard-mappings";
 
 interface PDFReportDocumentProps {
   scenarioTitle: string;
@@ -323,11 +320,6 @@ const PDFReportDocument = ({
 }: PDFReportDocumentProps) => {
   const keyPoints = extractKeyPoints(analysisResult);
   const analysisLines = analysisResult.split("\n").filter((line) => line.trim());
-  
-  // Get dashboard display names
-  const dashboardNames = selectedDashboards
-    .map((id) => dashboardConfigs[id]?.name)
-    .filter(Boolean);
 
   return (
     <Document>
@@ -378,27 +370,14 @@ const PDFReportDocument = ({
           </View>
         </View>
 
-        {/* Included Dashboards Section */}
-        {dashboardNames.length > 0 && (
+        {/* Dashboard Visualizations */}
+        {selectedDashboards.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Image src={exosLogo} style={styles.sectionLogoImage} />
-              <Text style={styles.sectionTitle}>Included Visualizations</Text>
+              <Text style={styles.sectionTitle}>Analysis Visualizations</Text>
             </View>
-            <View style={styles.sectionContent}>
-              {dashboardNames.map((name, i) => (
-                <View key={i} style={styles.limitationItem}>
-                  <View style={[styles.limitationBullet, { backgroundColor: colors.primary }]} />
-                  <Text style={[styles.limitationText, { color: colors.text }]}>
-                    {name}
-                  </Text>
-                </View>
-              ))}
-              <View style={{ height: 8 }} />
-              <Text style={styles.limitationText}>
-                Note: The interactive dashboards above are fully rendered in the web report. PDF exports contain the analysis summary, recommendations, and a list of available visualizations. For the complete interactive experience, use the "Share Report Link" feature.
-              </Text>
-            </View>
+            <PDFDashboardVisuals selectedDashboards={selectedDashboards} />
           </View>
         )}
 

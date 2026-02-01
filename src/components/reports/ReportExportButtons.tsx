@@ -208,7 +208,7 @@ const ReportExportButtons = ({
               Share Report
             </DialogTitle>
             <DialogDescription>
-              Anyone with this link can view your report. The link expires in 30 days.
+              Anyone with this link can view your report. The link expires in 5 days.
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center gap-2 mt-4">

@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from "react";
-import { useLocation, useSearchParams } from "react-router-dom";
+import { useState, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardType } from "@/lib/dashboard-mappings";
 
@@ -20,9 +20,12 @@ interface ShareableReportReturn {
   loadSharedReport: (shareId: string) => Promise<ReportData | null>;
 }
 
+/** Expiry period in days */
+const EXPIRY_DAYS = 5;
+
 /**
  * Hook for managing shareable report links.
- * Uses localStorage for MVP - can be upgraded to Supabase for cross-device sharing.
+ * Uses Supabase RPC for cross-device sharing with 5-day expiry.
  */
 export function useShareableReport(): ShareableReportReturn {
   const [searchParams] = useSearchParams();
@@ -38,71 +41,86 @@ export function useShareableReport(): ShareableReportReturn {
     return `${timestamp}-${random}`;
   };
 
-  // Store report data and generate a shareable link
-  const generateShareLink = useCallback(async (data: ReportData): Promise<string | null> => {
-    try {
-      setIsLoading(true);
-      const id = generateShareId();
-      
-      // Store in localStorage (MVP approach)
-      // TODO: Upgrade to Supabase for cross-device sharing
-      const storageKey = `exos_shared_report_${id}`;
-      localStorage.setItem(storageKey, JSON.stringify({
-        ...data,
-        createdAt: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
-      }));
-      
-      setShareId(id);
-      
-      // Build the share URL
-      const baseUrl = window.location.origin;
-      const shareUrl = `${baseUrl}/report?share=${id}`;
-      
-      return shareUrl;
-    } catch (error) {
-      console.error("Failed to generate share link:", error);
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  /**
+   * Store report data and generate a shareable link.
+   * Uses published URL so share links work without Lovable auth.
+   */
+  const generateShareLink = useCallback(
+    async (data: ReportData): Promise<string | null> => {
+      try {
+        setIsLoading(true);
+        const id = generateShareId();
 
-  // Load shared report data from storage
-  const loadSharedReport = useCallback(async (id: string): Promise<ReportData | null> => {
-    try {
-      setIsLoading(true);
-      
-      const storageKey = `exos_shared_report_${id}`;
-      const stored = localStorage.getItem(storageKey);
-      
-      if (!stored) {
+        const expiresAt = new Date(Date.now() + EXPIRY_DAYS * 24 * 60 * 60 * 1000).toISOString();
+
+        const { error } = await supabase.rpc("create_shared_report", {
+          p_share_id: id,
+          p_payload: JSON.parse(JSON.stringify(data)),
+          p_expires_at: expiresAt,
+        });
+
+        if (error) {
+          console.error("Failed to persist shared report:", error);
+          return null;
+        }
+
+        setShareId(id);
+
+        // Always use published URL so no Lovable auth is required
+        const publishedUrl = "https://optimal-buy.lovable.app";
+        const shareUrl = `${publishedUrl}/report?share=${id}`;
+
+        return shareUrl;
+      } catch (error) {
+        console.error("Failed to generate share link:", error);
         return null;
+      } finally {
+        setIsLoading(false);
       }
-      
-      const data = JSON.parse(stored);
-      
-      // Check expiration
-      if (data.expiresAt && new Date(data.expiresAt) < new Date()) {
-        localStorage.removeItem(storageKey);
+    },
+    []
+  );
+
+  /**
+   * Load shared report data from the database.
+   */
+  const loadSharedReport = useCallback(
+    async (id: string): Promise<ReportData | null> => {
+      try {
+        setIsLoading(true);
+
+        const { data, error } = await supabase.rpc("get_shared_report", {
+          p_share_id: id,
+        });
+
+        if (error) {
+          console.error("Failed to load shared report:", error);
+          return null;
+        }
+
+        if (!data) {
+          return null;
+        }
+
+        const payload = data as unknown as ReportData;
+
+        return {
+          scenarioTitle: payload.scenarioTitle,
+          scenarioId: payload.scenarioId,
+          analysisResult: payload.analysisResult,
+          formData: payload.formData,
+          timestamp: payload.timestamp,
+          selectedDashboards: payload.selectedDashboards,
+        };
+      } catch (error) {
+        console.error("Failed to load shared report:", error);
         return null;
+      } finally {
+        setIsLoading(false);
       }
-      
-      return {
-        scenarioTitle: data.scenarioTitle,
-        scenarioId: data.scenarioId,
-        analysisResult: data.analysisResult,
-        formData: data.formData,
-        timestamp: data.timestamp,
-        selectedDashboards: data.selectedDashboards,
-      };
-    } catch (error) {
-      console.error("Failed to load shared report:", error);
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+    },
+    []
+  );
 
   return {
     shareId,
