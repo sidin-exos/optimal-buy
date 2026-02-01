@@ -21,12 +21,10 @@ export const getDashboardScenarios = (dashboardId: DashboardType): string[] => {
 export const getDashboardScenarioTitles = (dashboardId: DashboardType): string[] => {
   const scenarioIds = getDashboardScenarios(dashboardId);
   
-  return scenarioIds
-    .map(id => {
-      const scenario = scenarios.find(s => s.id === id);
-      return scenario?.title || id;
-    })
-    .slice(0, 5); // Limit to 5 for display
+  return scenarioIds.map(id => {
+    const scenario = scenarios.find(s => s.id === id);
+    return scenario?.title || id;
+  });
 };
 
 // Get count of scenarios using this dashboard
