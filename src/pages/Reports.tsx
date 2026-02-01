@@ -75,20 +75,20 @@ const allDashboards: DashboardType[] = [
 // Component to render scenario annotation
 const ScenarioAnnotation = ({ dashboardId }: { dashboardId: DashboardType }) => {
   const scenarioTitles = getDashboardScenarioTitles(dashboardId);
-  const totalCount = getDashboardScenarioCount(dashboardId);
   
   if (scenarioTitles.length === 0) return null;
   
-  const displayTitles = scenarioTitles.slice(0, 3);
-  const remaining = totalCount - displayTitles.length;
-  
   return (
     <div className="mt-3 pt-3 border-t border-border/50">
-      <p className="text-xs text-muted-foreground">
-        <span className="font-medium text-foreground/70">Available for scenarios:</span>{" "}
-        {displayTitles.join(", ")}
-        {remaining > 0 && <span className="text-muted-foreground/70"> +{remaining} more</span>}
-      </p>
+      <p className="text-xs font-medium text-foreground/70 mb-2">Available for scenarios:</p>
+      <ul className="text-xs text-muted-foreground space-y-1">
+        {scenarioTitles.map((title, index) => (
+          <li key={index} className="flex items-center gap-2">
+            <span className="w-1 h-1 rounded-full bg-primary/60" />
+            {title}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 };
