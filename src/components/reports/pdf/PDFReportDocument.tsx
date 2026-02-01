@@ -4,12 +4,9 @@ import {
   Text,
   View,
   StyleSheet,
-  Font,
+  Image,
 } from "@react-pdf/renderer";
-
-// Register Helvetica-like fonts (using system fonts that @react-pdf supports)
-// @react-pdf/renderer has built-in support for Helvetica, Times-Roman, Courier
-// No custom font registration needed - we'll use the built-in Helvetica
+import exosLogo from "@/assets/logo-exo-layers-v2.png";
 
 // EXOS Corporate Colors
 const colors = {
@@ -20,6 +17,7 @@ const colors = {
   surfaceLight: "#1f2937",
   text: "#f9fafb",
   textMuted: "#9ca3af",
+  textSemiTransparent: "rgba(249, 250, 251, 0.6)",
   accent: "#06b6d4", // Cyan accent
   success: "#22c55e",
   border: "#374151",
@@ -47,18 +45,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
-  logoBox: {
-    width: 36,
-    height: 36,
-    backgroundColor: colors.primary,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  logoText: {
-    color: colors.background,
-    fontSize: 18,
-    fontWeight: 700,
+  logoImage: {
+    width: 40,
+    height: 40,
   },
   brandName: {
     fontSize: 20,
@@ -104,7 +93,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.textMuted,
   },
-  // Executive Summary
+  // Sections
   section: {
     marginBottom: 24,
   },
@@ -114,17 +103,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     gap: 8,
   },
-  sectionIcon: {
+  sectionLogoImage: {
     width: 20,
     height: 20,
-    backgroundColor: colors.primaryDark,
-    borderRadius: 4,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  sectionIconText: {
-    color: colors.text,
-    fontSize: 10,
   },
   sectionTitle: {
     fontSize: 14,
@@ -173,10 +154,17 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   analysisHeader: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: colors.text,
+    marginTop: 14,
+    marginBottom: 8,
+  },
+  analysisSubHeader: {
     fontSize: 11,
     fontWeight: 600,
     color: colors.text,
-    marginTop: 12,
+    marginTop: 10,
     marginBottom: 6,
   },
   // Inputs Summary
@@ -206,21 +194,27 @@ const styles = StyleSheet.create({
     bottom: 30,
     left: 40,
     right: 40,
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: "column",
     alignItems: "center",
     borderTopWidth: 1,
     borderTopColor: colors.border,
     paddingTop: 15,
   },
+  footerBrand: {
+    fontSize: 11,
+    color: colors.textSemiTransparent,
+    fontWeight: 600,
+    marginBottom: 8,
+  },
+  footerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    width: "100%",
+  },
   footerText: {
     fontSize: 8,
     color: colors.textMuted,
-  },
-  footerBrand: {
-    fontSize: 8,
-    color: colors.primary,
-    fontWeight: 600,
   },
   pageNumber: {
     fontSize: 8,
@@ -244,26 +238,39 @@ interface PDFReportDocumentProps {
   timestamp: string;
 }
 
+// Clean markdown formatting from text
+const cleanMarkdown = (text: string): string => {
+  return text
+    .replace(/\*\*\*/g, "") // Remove triple stars
+    .replace(/\*\*/g, "") // Remove double stars (bold)
+    .replace(/^\s*\*\s+/gm, "") // Remove bullet points (* at start of line)
+    .replace(/^#{1,4}\s*/gm, "") // Remove hash headers
+    .trim();
+};
+
 const extractKeyPoints = (text: string): string[] => {
   const lines = text.split("\n").filter((line) => line.trim());
   const keyPoints: string[] = [];
 
   for (const line of lines) {
+    const cleanLine = cleanMarkdown(line);
+    if (!cleanLine) continue;
+
     if (
-      line.includes("recommend") ||
-      line.includes("suggest") ||
-      line.includes("should") ||
-      line.includes("%") ||
-      line.includes("$")
+      cleanLine.includes("recommend") ||
+      cleanLine.includes("suggest") ||
+      cleanLine.includes("should") ||
+      cleanLine.includes("%") ||
+      cleanLine.includes("$")
     ) {
-      keyPoints.push(line.trim().replace(/\*\*/g, ""));
+      keyPoints.push(cleanLine);
       if (keyPoints.length >= 5) break;
     }
   }
 
   return keyPoints.length > 0
     ? keyPoints
-    : lines.slice(0, 5).map((l) => l.replace(/\*\*/g, ""));
+    : lines.slice(0, 5).map(cleanMarkdown).filter(Boolean);
 };
 
 const formatDate = (dateString: string) => {
@@ -292,12 +299,10 @@ const PDFReportDocument = ({
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.logoSection}>
-            <View style={styles.logoBox}>
-              <Text style={styles.logoText}>E</Text>
-            </View>
+            <Image src={exosLogo} style={styles.logoImage} />
             <View>
               <Text style={styles.brandName}>EXOS</Text>
-              <Text style={styles.brandTagline}>PROCUREMENT AI</Text>
+              <Text style={styles.brandTagline}>YOUR PROCUREMENT EXOSKELETON</Text>
             </View>
           </View>
           <View style={styles.reportMeta}>
@@ -312,16 +317,14 @@ const PDFReportDocument = ({
         <View style={styles.titleSection}>
           <Text style={styles.reportTitle}>{scenarioTitle} Analysis</Text>
           <Text style={styles.reportSubtitle}>
-            Strategic procurement analysis powered by EXOS Sentinel AI
+            Strategic procurement analysis powered by EXOS Procurement Intelligence
           </Text>
         </View>
 
         {/* Executive Summary */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View style={styles.sectionIcon}>
-              <Text style={styles.sectionIconText}>✓</Text>
-            </View>
+            <Image src={exosLogo} style={styles.sectionLogoImage} />
             <Text style={styles.sectionTitle}>Executive Summary</Text>
           </View>
           <View style={styles.sectionContent}>
@@ -340,9 +343,7 @@ const PDFReportDocument = ({
         {Object.keys(formData).length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <View style={styles.sectionIcon}>
-                <Text style={styles.sectionIconText}>📋</Text>
-              </View>
+              <Image src={exosLogo} style={styles.sectionLogoImage} />
               <Text style={styles.sectionTitle}>Analysis Inputs</Text>
             </View>
             <View style={styles.sectionContent}>
@@ -367,16 +368,18 @@ const PDFReportDocument = ({
 
         {/* Footer */}
         <View style={styles.footer} fixed>
-          <Text style={styles.footerText}>
-            Confidential • For internal use only
-          </Text>
-          <Text style={styles.footerBrand}>Powered by EXOS Sentinel AI</Text>
-          <Text
-            style={styles.pageNumber}
-            render={({ pageNumber, totalPages }) =>
-              `Page ${pageNumber} of ${totalPages}`
-            }
-          />
+          <Text style={styles.footerBrand}>Powered by EXOS Procurement Intelligence</Text>
+          <View style={styles.footerRow}>
+            <Text style={styles.footerText}>
+              Confidential • For internal use only
+            </Text>
+            <Text
+              style={styles.pageNumber}
+              render={({ pageNumber, totalPages }) =>
+                `Page ${pageNumber} of ${totalPages}`
+              }
+            />
+          </View>
         </View>
       </Page>
 
@@ -386,29 +389,44 @@ const PDFReportDocument = ({
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View style={styles.sectionIcon}>
-              <Text style={styles.sectionIconText}>📊</Text>
-            </View>
+            <Image src={exosLogo} style={styles.sectionLogoImage} />
             <Text style={styles.sectionTitle}>Detailed Analysis</Text>
           </View>
           <View style={styles.sectionContent}>
             {analysisLines.map((line, i) => {
-              const cleanLine = line.replace(/\*\*/g, "");
-              const isSectionHeader =
-                (cleanLine.trim().endsWith(":") &&
-                  cleanLine.trim().length < 80) ||
-                (cleanLine.trim().length > 0 &&
-                  cleanLine.trim().length < 60 &&
-                  /^[A-Z]/.test(cleanLine.trim()) &&
-                  !cleanLine.includes("."));
-
-              if (!cleanLine.trim()) {
+              // Check if line starts with hash headers (###, ####, etc.)
+              const hashMatch = line.match(/^(#{1,4})\s*(.*)$/);
+              const isHashHeader = !!hashMatch;
+              
+              // Clean all markdown formatting
+              const cleanLine = cleanMarkdown(line);
+              
+              if (!cleanLine) {
                 return <View key={i} style={{ height: 8 }} />;
               }
+              
+              // Hash headers get largest styling
+              if (isHashHeader) {
+                const headerLevel = hashMatch[1].length;
+                const headerStyle = headerLevel <= 2 ? styles.analysisHeader : styles.analysisSubHeader;
+                return (
+                  <Text key={i} style={headerStyle}>
+                    {cleanLine}
+                  </Text>
+                );
+              }
+              
+              // Check if line looks like a section header (ends with colon or is title case short line)
+              const isSectionHeader =
+                (cleanLine.endsWith(":") && cleanLine.length < 80) ||
+                (cleanLine.length > 0 &&
+                  cleanLine.length < 60 &&
+                  /^[A-Z]/.test(cleanLine) &&
+                  !cleanLine.includes("."));
 
               if (isSectionHeader) {
                 return (
-                  <Text key={i} style={styles.analysisHeader}>
+                  <Text key={i} style={styles.analysisSubHeader}>
                     {cleanLine}
                   </Text>
                 );
@@ -425,16 +443,18 @@ const PDFReportDocument = ({
 
         {/* Footer */}
         <View style={styles.footer} fixed>
-          <Text style={styles.footerText}>
-            Confidential • For internal use only
-          </Text>
-          <Text style={styles.footerBrand}>Powered by EXOS Sentinel AI</Text>
-          <Text
-            style={styles.pageNumber}
-            render={({ pageNumber, totalPages }) =>
-              `Page ${pageNumber} of ${totalPages}`
-            }
-          />
+          <Text style={styles.footerBrand}>Powered by EXOS Procurement Intelligence</Text>
+          <View style={styles.footerRow}>
+            <Text style={styles.footerText}>
+              Confidential • For internal use only
+            </Text>
+            <Text
+              style={styles.pageNumber}
+              render={({ pageNumber, totalPages }) =>
+                `Page ${pageNumber} of ${totalPages}`
+              }
+            />
+          </View>
         </View>
       </Page>
     </Document>

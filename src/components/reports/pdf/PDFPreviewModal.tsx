@@ -204,13 +204,27 @@ const PDFPreviewModal = ({
                 exit={{ opacity: 0 }}
                 className="w-full h-full"
               >
-                <iframe
-                  src={pdfBlobUrl}
+                <object
+                  data={pdfBlobUrl}
+                  type="application/pdf"
                   width="100%"
                   height="100%"
                   className="border-0"
-                  title="PDF Preview"
-                />
+                >
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center p-8 max-w-md">
+                      <div className="w-16 h-16 rounded-2xl bg-muted mx-auto mb-4 flex items-center justify-center">
+                        <FileText className="w-8 h-8 text-muted-foreground" />
+                      </div>
+                      <h3 className="font-display text-lg font-semibold mb-2">
+                        Preview Blocked
+                      </h3>
+                      <p className="text-muted-foreground text-sm mb-4">
+                        Your browser blocked the inline preview. Click "Open in Tab" or download the PDF directly.
+                      </p>
+                    </div>
+                  </div>
+                </object>
               </motion.div>
             ) : (
               <motion.div
