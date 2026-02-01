@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, Loader2, Sparkles, AlertTriangle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Sparkles, AlertTriangle, FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -41,6 +41,8 @@ import {
 } from "@/lib/scenarios";
 import { useSentinel } from "@/hooks/useSentinel";
 import { useIndustryContext, useProcurementCategory } from "@/hooks/useContextData";
+import { useShareableMode } from "@/hooks/useShareableMode";
+import { generateTestData } from "@/lib/test-data-factory";
 import { toast } from "sonner";
 
 interface GenericScenarioWizardProps {
@@ -51,6 +53,7 @@ type Step = "input" | "review" | "analyzing" | "results";
 
 const GenericScenarioWizard = ({ scenario }: GenericScenarioWizardProps) => {
   const navigate = useNavigate();
+  const { showTechnicalDetails } = useShareableMode();
   const [step, setStep] = useState<Step>("input");
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [strategyValue, setStrategyValue] = useState<StrategyType>("balanced");
@@ -76,6 +79,15 @@ const GenericScenarioWizard = ({ scenario }: GenericScenarioWizardProps) => {
       toast.error(`Analysis failed: ${error.message}`);
     },
   });
+
+  // Test data generation (hidden feature for internal testing)
+  const handleGenerateTestData = () => {
+    const testData = generateTestData(scenario.id);
+    setFormData(testData);
+    toast.success("Test data generated", {
+      description: "Review the form and click again to regenerate",
+    });
+  };
 
   // Reset overrides when context selection changes
   const handleIndustryChange = (slug: string | null) => {
@@ -266,14 +278,29 @@ const GenericScenarioWizard = ({ scenario }: GenericScenarioWizardProps) => {
             exit={{ opacity: 0, x: -20 }}
             className="space-y-6"
           >
-            <div>
-              <h3 className="font-display text-lg font-semibold mb-1">
-                Enter Your Data
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Fields marked with <span className="text-destructive">*</span> are required 
-                for the analysis. Optional fields improve recommendation accuracy.
-              </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-display text-lg font-semibold mb-1">
+                  Enter Your Data
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Fields marked with <span className="text-destructive">*</span> are required 
+                  for the analysis. Optional fields improve recommendation accuracy.
+                </p>
+              </div>
+              
+              {/* Hidden test data generator button (only visible in non-shared mode) */}
+              {showTechnicalDetails && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGenerateTestData}
+                  className="gap-2 text-muted-foreground hover:text-foreground"
+                >
+                  <FlaskConical className="w-4 h-4" />
+                  Generate Test Data
+                </Button>
+              )}
             </div>
 
             {/* Master XML Template Preview (hidden in shareable mode) */}
