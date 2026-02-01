@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import PDFReportDocument from "./PDFReportDocument";
+import { DashboardType } from "@/lib/dashboard-mappings";
 
 interface PDFPreviewModalProps {
   open: boolean;
@@ -18,6 +19,7 @@ interface PDFPreviewModalProps {
   analysisResult: string;
   formData: Record<string, string>;
   timestamp: string;
+  selectedDashboards?: DashboardType[];
 }
 
 const PDFPreviewModal = ({
@@ -27,6 +29,7 @@ const PDFPreviewModal = ({
   analysisResult,
   formData,
   timestamp,
+  selectedDashboards = [],
 }: PDFPreviewModalProps) => {
   const [showPreview, setShowPreview] = useState(true);
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
@@ -60,6 +63,7 @@ const PDFPreviewModal = ({
           analysisResult={analysisResult}
           formData={formData}
           timestamp={timestamp}
+          selectedDashboards={selectedDashboards}
         />
       );
       

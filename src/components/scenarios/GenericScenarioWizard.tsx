@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import DataRequirementsAlert from "@/components/consolidation/DataRequirementsAlert";
 import StrategySelector, { StrategyType, strategyPresets } from "./StrategySelector";
+import DashboardSelector from "./DashboardSelector";
 import { IndustrySelector } from "@/components/context/IndustrySelector";
 import { CategorySelector } from "@/components/context/CategorySelector";
 import { ContextPreview } from "@/components/context/ContextPreview";
@@ -40,6 +41,7 @@ import {
   getMissingRequiredFields,
   getMissingOptionalFields,
 } from "@/lib/scenarios";
+import { DashboardType, getDashboardsForScenario } from "@/lib/dashboard-mappings";
 import { useSentinel } from "@/hooks/useSentinel";
 import { useIndustryContext, useProcurementCategory } from "@/hooks/useContextData";
 import { useShareableMode } from "@/hooks/useShareableMode";
@@ -63,6 +65,7 @@ const GenericScenarioWizard = ({ scenario }: GenericScenarioWizardProps) => {
   const [industryOverrides, setIndustryOverrides] = useState<IndustryContextOverrides>(getDefaultOverrides());
   const [categoryOverrides, setCategoryOverrides] = useState<CategoryContextOverrides>(getDefaultCategoryOverrides());
   const [selectedModel, setSelectedModel] = useState<AIModel>(DEFAULT_MODEL);
+  const [selectedDashboards, setSelectedDashboards] = useState<DashboardType[]>([]);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const [analysisTimestamp, setAnalysisTimestamp] = useState<string | null>(null);
   const fieldRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -156,9 +159,11 @@ const GenericScenarioWizard = ({ scenario }: GenericScenarioWizardProps) => {
     navigate("/report", {
       state: {
         scenarioTitle: scenario.title,
+        scenarioId: scenario.id,
         analysisResult: analysisResult,
         formData: formData,
         timestamp: analysisTimestamp,
+        selectedDashboards: selectedDashboards,
       },
     });
   };
@@ -421,6 +426,13 @@ const GenericScenarioWizard = ({ scenario }: GenericScenarioWizardProps) => {
                 </div>
               </div>
             )}
+
+            {/* Dashboard Selector */}
+            <DashboardSelector
+              scenarioId={scenario.id}
+              selectedDashboards={selectedDashboards}
+              onSelectionChange={setSelectedDashboards}
+            />
 
             {/* AI Model Selector - hidden in shareable mode */}
             <ModelSelector value={selectedModel} onChange={setSelectedModel} />

@@ -1,0 +1,185 @@
+import { Activity } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+interface SensitivityVariable {
+  name: string;
+  baseCase: number;
+  lowCase: number;
+  highCase: number;
+  unit?: string;
+}
+
+interface SensitivitySpiderDashboardProps {
+  title?: string;
+  subtitle?: string;
+  variables?: SensitivityVariable[];
+  baseCaseTotal?: number;
+  currency?: string;
+}
+
+const defaultVariables: SensitivityVariable[] = [
+  { name: "Material Cost", baseCase: 450000, lowCase: 380000, highCase: 540000, unit: "$" },
+  { name: "Labor Rate", baseCase: 180000, lowCase: 150000, highCase: 225000, unit: "$" },
+  { name: "Volume", baseCase: 100000, lowCase: 80000, highCase: 120000, unit: "units" },
+  { name: "Exchange Rate", baseCase: 1.0, lowCase: 0.85, highCase: 1.15, unit: "multiplier" },
+  { name: "Overhead %", baseCase: 15, lowCase: 12, highCase: 20, unit: "%" },
+];
+
+const formatCurrency = (value: number, currency: string = "$"): string => {
+  if (value >= 1000000) {
+    return `${currency}${(value / 1000000).toFixed(1)}M`;
+  }
+  if (value >= 1000) {
+    return `${currency}${(value / 1000).toFixed(0)}K`;
+  }
+  return `${currency}${value}`;
+};
+
+const formatValue = (value: number, unit?: string): string => {
+  if (unit === "$") return formatCurrency(value);
+  if (unit === "%") return `${value}%`;
+  if (unit === "units") return `${(value / 1000).toFixed(0)}K`;
+  return value.toFixed(2);
+};
+
+const SensitivitySpiderDashboard = ({
+  title = "Sensitivity Analysis",
+  subtitle = "Impact of variable changes",
+  variables = defaultVariables,
+  baseCaseTotal = 1200000,
+  currency = "$",
+}: SensitivitySpiderDashboardProps) => {
+  // Calculate impact for each variable
+  const impacts = variables.map((v) => {
+    const lowImpact = v.lowCase - v.baseCase;
+    const highImpact = v.highCase - v.baseCase;
+    const maxImpact = Math.max(Math.abs(lowImpact), Math.abs(highImpact));
+    return { ...v, lowImpact, highImpact, maxImpact };
+  });
+
+  // Sort by maximum impact
+  const sortedImpacts = [...impacts].sort((a, b) => b.maxImpact - a.maxImpact);
+  const maxOverallImpact = Math.max(...sortedImpacts.map((i) => i.maxImpact));
+
+  return (
+    <Card className="card-elevated h-full">
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center">
+              <Activity className="w-4 h-4 text-foreground" />
+            </div>
+            <div>
+              <CardTitle className="font-display text-base">{title}</CardTitle>
+              <p className="text-xs text-muted-foreground">{subtitle}</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-lg font-semibold text-foreground">
+              {formatCurrency(baseCaseTotal, currency)}
+            </p>
+            <p className="text-xs text-muted-foreground">base case</p>
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {/* Tornado Chart */}
+        <div className="space-y-3">
+          {sortedImpacts.map((variable) => {
+            const lowBarWidth = (Math.abs(variable.lowImpact) / maxOverallImpact) * 45;
+            const highBarWidth = (Math.abs(variable.highImpact) / maxOverallImpact) * 45;
+
+            return (
+              <div key={variable.name} className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium text-foreground">{variable.name}</span>
+                  <span className="text-muted-foreground">
+                    ±{formatCurrency(variable.maxImpact, currency)}
+                  </span>
+                </div>
+
+                {/* Tornado bar */}
+                <div className="relative h-6 flex items-center">
+                  {/* Center line */}
+                  <div className="absolute left-1/2 top-0 bottom-0 w-px bg-border" />
+
+                  {/* Low case bar (left of center) */}
+                  <div className="absolute right-1/2 h-5 flex items-center justify-end">
+                    <div
+                      className={`h-full rounded-l ${
+                        variable.lowImpact < 0 ? "bg-destructive/70" : "bg-primary/70"
+                      }`}
+                      style={{ width: `${lowBarWidth}%`, minWidth: lowBarWidth > 0 ? "4px" : "0" }}
+                    />
+                  </div>
+
+                  {/* High case bar (right of center) */}
+                  <div className="absolute left-1/2 h-5 flex items-center">
+                    <div
+                      className={`h-full rounded-r ${
+                        variable.highImpact > 0 ? "bg-destructive/70" : "bg-primary/70"
+                      }`}
+                      style={{ width: `${highBarWidth}%`, minWidth: highBarWidth > 0 ? "4px" : "0" }}
+                    />
+                  </div>
+
+                  {/* Labels */}
+                  <div className="absolute left-0 text-xs text-muted-foreground">
+                    {formatValue(variable.lowCase, variable.unit)}
+                  </div>
+                  <div className="absolute right-0 text-xs text-muted-foreground">
+                    {formatValue(variable.highCase, variable.unit)}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Legend */}
+        <div className="flex items-center justify-center gap-6 text-xs pt-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded bg-primary/70" />
+            <span className="text-muted-foreground">Favorable</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded bg-destructive/70" />
+            <span className="text-muted-foreground">Unfavorable</span>
+          </div>
+        </div>
+
+        {/* Key Insight */}
+        <div className="pt-3 border-t border-border/30">
+          <p className="text-xs text-muted-foreground">
+            <span className="text-warning font-medium">Key Risk:</span> {sortedImpacts[0]?.name} has the highest impact (±{formatCurrency(sortedImpacts[0]?.maxImpact || 0, currency)}) on total cost
+          </p>
+        </div>
+
+        {/* Range Summary */}
+        <div className="grid grid-cols-3 gap-4 text-center pt-3 border-t border-border/30">
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Best Case</p>
+            <p className="text-sm font-semibold text-primary">
+              {formatCurrency(baseCaseTotal - sortedImpacts.reduce((sum, v) => sum + Math.abs(v.lowImpact < 0 ? v.lowImpact : 0), 0), currency)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Base Case</p>
+            <p className="text-sm font-semibold text-foreground">
+              {formatCurrency(baseCaseTotal, currency)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Worst Case</p>
+            <p className="text-sm font-semibold text-destructive">
+              {formatCurrency(baseCaseTotal + sortedImpacts.reduce((sum, v) => sum + Math.abs(v.highImpact > 0 ? v.highImpact : 0), 0), currency)}
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default SensitivitySpiderDashboard;

@@ -261,11 +261,14 @@ const styles = StyleSheet.create({
   },
 });
 
+import { DashboardType, dashboardConfigs } from "@/lib/dashboard-mappings";
+
 interface PDFReportDocumentProps {
   scenarioTitle: string;
   analysisResult: string;
   formData: Record<string, string>;
   timestamp: string;
+  selectedDashboards?: DashboardType[];
 }
 
 // Clean markdown formatting from text
@@ -316,9 +319,15 @@ const PDFReportDocument = ({
   analysisResult,
   formData,
   timestamp,
+  selectedDashboards = [],
 }: PDFReportDocumentProps) => {
   const keyPoints = extractKeyPoints(analysisResult);
   const analysisLines = analysisResult.split("\n").filter((line) => line.trim());
+  
+  // Get dashboard display names
+  const dashboardNames = selectedDashboards
+    .map((id) => dashboardConfigs[id]?.name)
+    .filter(Boolean);
 
   return (
     <Document>
@@ -368,6 +377,30 @@ const PDFReportDocument = ({
             ))}
           </View>
         </View>
+
+        {/* Included Dashboards Section */}
+        {dashboardNames.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Image src={exosLogo} style={styles.sectionLogoImage} />
+              <Text style={styles.sectionTitle}>Included Visualizations</Text>
+            </View>
+            <View style={styles.sectionContent}>
+              {dashboardNames.map((name, i) => (
+                <View key={i} style={styles.limitationItem}>
+                  <View style={[styles.limitationBullet, { backgroundColor: colors.primary }]} />
+                  <Text style={[styles.limitationText, { color: colors.text }]}>
+                    {name}
+                  </Text>
+                </View>
+              ))}
+              <View style={{ height: 8 }} />
+              <Text style={styles.limitationText}>
+                Note: Interactive dashboards are available in the web report. This PDF contains the analysis summary and recommendations.
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Footer */}
         <View style={styles.footer} fixed>
