@@ -9,6 +9,7 @@ import {
   Calendar,
   Building2,
   Target,
+  BarChart3,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
@@ -16,12 +17,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import ReportExportButtons from "@/components/reports/ReportExportButtons";
+import DashboardRenderer from "@/components/reports/DashboardRenderer";
+import { DashboardType, dashboardConfigs } from "@/lib/dashboard-mappings";
 
 interface ReportState {
   scenarioTitle: string;
+  scenarioId?: string;
   analysisResult: string;
   formData: Record<string, string>;
   timestamp: string;
+  selectedDashboards?: DashboardType[];
 }
 
 const GeneratedReport = () => {
@@ -46,7 +51,7 @@ const GeneratedReport = () => {
     );
   }
 
-  const { scenarioTitle, analysisResult, formData, timestamp } = state;
+  const { scenarioTitle, scenarioId, analysisResult, formData, timestamp, selectedDashboards = [] } = state;
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -152,9 +157,44 @@ const GeneratedReport = () => {
               analysisResult={analysisResult}
               formData={formData}
               timestamp={timestamp}
+              selectedDashboards={selectedDashboards}
             />
           </div>
         </motion.div>
+
+        {/* Dashboards Section */}
+        {selectedDashboards.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="mb-8"
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <BarChart3 className="w-5 h-5 text-primary" />
+              <h2 className="font-display text-lg font-semibold">Analysis Dashboards</h2>
+              <Badge variant="secondary">{selectedDashboards.length}</Badge>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {selectedDashboards.map((dashboardType, index) => (
+                <motion.div
+                  key={dashboardType}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 + index * 0.05 }}
+                >
+                  <DashboardRenderer
+                    dashboardType={dashboardType}
+                    scenarioTitle={scenarioTitle}
+                    analysisResult={analysisResult}
+                    formData={formData}
+                  />
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Report Content */}
@@ -268,6 +308,26 @@ const GeneratedReport = () => {
                   ))}
               </CardContent>
             </Card>
+
+            {/* Selected Dashboards */}
+            {selectedDashboards.length > 0 && (
+              <Card className="card-elevated">
+                <CardHeader>
+                  <CardTitle className="font-display text-base">Included Dashboards</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {selectedDashboards.map((dashboardType) => {
+                    const config = dashboardConfigs[dashboardType];
+                    return (
+                      <div key={dashboardType} className="flex items-center gap-2 text-sm">
+                        <div className="w-2 h-2 rounded-full bg-primary" />
+                        <span className="text-foreground">{config?.name || dashboardType}</span>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Quick Actions */}
             <Card className="card-elevated">

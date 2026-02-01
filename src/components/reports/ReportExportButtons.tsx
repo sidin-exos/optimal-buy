@@ -41,11 +41,14 @@ const NotionIcon = () => (
   </svg>
 );
 
+import { DashboardType } from "@/lib/dashboard-mappings";
+
 interface ReportExportButtonsProps {
   scenarioTitle?: string;
   analysisResult?: string;
   formData?: Record<string, string>;
   timestamp?: string;
+  selectedDashboards?: DashboardType[];
 }
 
 const ReportExportButtons = ({
@@ -53,6 +56,7 @@ const ReportExportButtons = ({
   analysisResult = "",
   formData = {},
   timestamp = new Date().toISOString(),
+  selectedDashboards = [],
 }: ReportExportButtonsProps) => {
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
 
@@ -134,6 +138,7 @@ const ReportExportButtons = ({
         analysisResult={analysisResult}
         formData={formData}
         timestamp={timestamp}
+        selectedDashboards={selectedDashboards}
       />
     </>
   );

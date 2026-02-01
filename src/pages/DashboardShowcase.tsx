@@ -5,6 +5,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ActionChecklistDashboard from "@/components/reports/ActionChecklistDashboard";
 import DecisionMatrixDashboard from "@/components/reports/DecisionMatrixDashboard";
 import CostWaterfallDashboard from "@/components/reports/CostWaterfallDashboard";
+import TimelineRoadmapDashboard from "@/components/reports/TimelineRoadmapDashboard";
+import KraljicQuadrantDashboard from "@/components/reports/KraljicQuadrantDashboard";
+import TCOComparisonDashboard from "@/components/reports/TCOComparisonDashboard";
+import LicenseTierDashboard from "@/components/reports/LicenseTierDashboard";
+import SensitivitySpiderDashboard from "@/components/reports/SensitivitySpiderDashboard";
 import RiskMatrixDashboard from "@/components/reports/RiskMatrixDashboard";
 import ScenarioComparisonDashboard from "@/components/reports/ScenarioComparisonDashboard";
 import SupplierPerformanceDashboard from "@/components/reports/SupplierPerformanceDashboard";
@@ -171,19 +176,24 @@ const DashboardShowcase = () => {
           </Tabs>
         </section>
 
-        {/* Existing Dashboards */}
+        {/* Additional Dashboards */}
         <section>
           <h2 className="text-lg font-display font-semibold text-foreground mb-2">
-            Existing Dashboard Templates
+            All Dashboard Templates
           </h2>
           <p className="text-sm text-muted-foreground mb-6">
-            Already implemented and ready for scenario integration
+            Complete library of 11 visualization components
           </p>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-2 gap-6">
             <RiskMatrixDashboard />
             <ScenarioComparisonDashboard />
             <SupplierPerformanceDashboard />
+            <TimelineRoadmapDashboard />
+            <KraljicQuadrantDashboard />
+            <TCOComparisonDashboard />
+            <LicenseTierDashboard />
+            <SensitivitySpiderDashboard />
           </div>
         </section>
       </main>
