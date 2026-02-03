@@ -13,10 +13,10 @@ const SentinelCapabilities = () => {
     },
     {
       icon: Database,
-      title: "Private Grounding",
+      title: "Private Grounding + Live Intel",
       role: "Knowledge Injection",
-      description: "Enriches anonymized prompts with industry benchmarks, historical cases, and category-specific strategies from local databases.",
-      example: "Injects: industry constraints, procurement KPIs, past case patterns"
+      description: "Enriches anonymized prompts with industry benchmarks, category strategies, and real-time market intelligence from verified sources.",
+      example: "Injects: industry KPIs, supplier news, M&A alerts, commodity trends"
     },
     {
       icon: ShieldCheck,
