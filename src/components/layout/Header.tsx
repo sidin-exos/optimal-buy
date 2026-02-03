@@ -51,6 +51,13 @@ const Header = () => {
             Pricing
           </NavLink>
           <NavLink 
+            to="/market-intelligence" 
+            className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+            activeClassName="text-foreground"
+          >
+            Intelligence
+          </NavLink>
+          <NavLink 
             to="/faq" 
             className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
             activeClassName="text-foreground"
