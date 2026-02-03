@@ -17,11 +17,11 @@ const DataFlowDiagram = () => {
       icon: Shield,
       isHighlighted: true,
       items: [
-        { step: "1", name: "Anonymizer", desc: "Protect sensitive commercial data" },
-        { step: "2", name: "Grounding", desc: "Inject industry & category context" },
-        { step: "3", name: "Market Intel", desc: "Amplify with real-time market data" },
-        { step: "4", name: "Validator", desc: "Filter hallucinations & verify logic" },
-        { step: "5", name: "Restorer", desc: "De-anonymize for actionable output" },
+        { step: "1", name: "Anonymizer", desc: "Masks company names, prices & volumes before external processing" },
+        { step: "2", name: "Grounding", desc: "Injects 30+ industry profiles & category strategies into analysis" },
+        { step: "3", name: "Market Intel", desc: "Enriches with live supplier news, M&A, and commodity trends" },
+        { step: "4", name: "Validator", desc: "Cross-checks AI output for consistency and factual accuracy" },
+        { step: "5", name: "Restorer", desc: "Replaces tokens with original data for actionable insights" },
       ],
     },
     {
