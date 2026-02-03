@@ -44,6 +44,54 @@ export type Database = {
         }
         Relationships: []
       }
+      intel_queries: {
+        Row: {
+          citations: Json | null
+          created_at: string
+          domain_filter: string[] | null
+          error_message: string | null
+          id: string
+          model_used: string | null
+          processing_time_ms: number | null
+          query_text: string
+          query_type: string
+          raw_response: Json | null
+          recency_filter: string | null
+          success: boolean
+          summary: string | null
+        }
+        Insert: {
+          citations?: Json | null
+          created_at?: string
+          domain_filter?: string[] | null
+          error_message?: string | null
+          id?: string
+          model_used?: string | null
+          processing_time_ms?: number | null
+          query_text: string
+          query_type: string
+          raw_response?: Json | null
+          recency_filter?: string | null
+          success?: boolean
+          summary?: string | null
+        }
+        Update: {
+          citations?: Json | null
+          created_at?: string
+          domain_filter?: string[] | null
+          error_message?: string | null
+          id?: string
+          model_used?: string | null
+          processing_time_ms?: number | null
+          query_text?: string
+          query_type?: string
+          raw_response?: Json | null
+          recency_filter?: string | null
+          success?: boolean
+          summary?: string | null
+        }
+        Relationships: []
+      }
       procurement_categories: {
         Row: {
           characteristics: string
