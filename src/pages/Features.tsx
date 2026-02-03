@@ -9,35 +9,35 @@ const Features = () => {
   const valuePropositions = [
     {
       icon: Brain,
-      title: "Fine-tuned Procurement Scenarios",
-      description: "AI logic specifically trained for procurement decisions. Cost analysis, negotiation simulations, and make-or-buy scenarios—all built on proven procurement methodologies.",
+      title: "21+ Procurement Scenarios",
+      description: "Purpose-built AI models for high-stakes procurement decisions. From cost optimization to risk simulation—each scenario is fine-tuned on proven methodologies.",
       highlights: [
-        "Volume consolidation analysis",
-        "Supplier negotiation scenarios",
-        "TCO calculations with industry benchmarks",
-        "Risk-adjusted recommendations"
+        "Make-or-Buy & TCO analysis",
+        "Supplier dependency & exit planning",
+        "Black Swan scenario simulation",
+        "SOW & specification optimization"
       ]
     },
     {
       icon: Database,
-      title: "Distilled Industry Best Practices",
-      description: "Your analysis is grounded in curated knowledge from manufacturing, retail, healthcare, and more. Each recommendation reflects sector-specific constraints and KPIs.",
+      title: "Real-Time Market Intelligence",
+      description: "Ground every analysis with live market data. Our system queries real-time sources for supplier news, M&A activity, commodity trends, and regulatory changes—then injects this into your analysis.",
       highlights: [
-        "Industry-specific constraints",
-        "Category procurement strategies",
-        "Benchmark databases",
-        "Historical case patterns"
+        "Live supplier & category intelligence",
+        "30+ industry grounding profiles",
+        "30+ category strategy frameworks",
+        "Cited sources for full transparency"
       ]
     },
     {
       icon: Shield,
-      title: "Secured Sensitive Information Flow",
-      description: "Your commercial data never leaves unprotected. Our local intelligence layer anonymizes sensitive information before any external processing, then restores context in the final output.",
+      title: "Enterprise-Grade Risk Assessment",
+      description: "Proactively identify vulnerabilities before they become crises. From single-supplier dependencies to catastrophic market disruptions—EXOS builds resilience into your strategy.",
       highlights: [
-        "Semantic anonymization of prices & names",
-        "Private knowledge grounding",
-        "Integrity validation (anti-hallucination)",
-        "Secure context restoration"
+        "Black Swan event simulation",
+        "Category risk evaluation at tender stage",
+        "Supplier portfolio concentration analysis",
+        "Proactive mitigation roadmaps"
       ]
     }
   ];
