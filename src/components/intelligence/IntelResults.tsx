@@ -14,7 +14,8 @@ import {
   Scale, 
   GitMerge, 
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  Coins
 } from "lucide-react";
 import { type IntelResult, type QueryType, QUERY_TYPE_LABELS } from "@/hooks/useMarketIntelligence";
 import { toast } from "sonner";
@@ -61,11 +62,17 @@ export function IntelResults({ result, onNewQuery }: IntelResultsProps) {
                 </CardDescription>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="outline" className="gap-1">
                 <Clock className="w-3 h-3" />
                 {(result.processingTimeMs / 1000).toFixed(1)}s
               </Badge>
+              {result.tokenUsage && (
+                <Badge variant="outline" className="gap-1">
+                  <Coins className="w-3 h-3" />
+                  {result.tokenUsage.totalTokens.toLocaleString()} tokens
+                </Badge>
+              )}
               <Badge variant="default" className="gap-1">
                 <CheckCircle2 className="w-3 h-3" />
                 Complete

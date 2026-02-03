@@ -156,6 +156,13 @@ serve(async (req) => {
     // Extract response content and citations
     const summary = data.choices?.[0]?.message?.content || "";
     const citations = data.citations || [];
+    
+    // Extract token usage
+    const tokenUsage = data.usage ? {
+      promptTokens: data.usage.prompt_tokens || 0,
+      completionTokens: data.usage.completion_tokens || 0,
+      totalTokens: data.usage.total_tokens || 0,
+    } : null;
 
     // Format citations as structured objects
     const formattedCitations = citations.map((url: string, index: number) => ({
@@ -192,6 +199,7 @@ serve(async (req) => {
         queryType,
         processingTimeMs,
         model: "sonar-pro",
+        tokenUsage,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

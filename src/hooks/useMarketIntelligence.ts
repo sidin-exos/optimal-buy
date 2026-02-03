@@ -17,6 +17,12 @@ export interface IntelQueryParams {
   context?: string;
 }
 
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
 export interface IntelResult {
   success: boolean;
   summary: string;
@@ -24,6 +30,7 @@ export interface IntelResult {
   queryType: QueryType;
   processingTimeMs: number;
   model: string;
+  tokenUsage?: TokenUsage | null;
 }
 
 export interface IntelQuery {
