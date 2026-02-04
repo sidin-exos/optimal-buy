@@ -15,11 +15,28 @@ const ArchitectureDiagram = () => {
 
     setIsDownloading(true);
     try {
-      const dataUrl = await toPng(diagramRef.current, {
+      // Get the actual size of the diagram
+      const element = diagramRef.current;
+      const originalStyle = element.style.cssText;
+      
+      // Temporarily remove any clipping and ensure full size
+      element.style.overflow = "visible";
+      element.style.width = "auto";
+      element.style.height = "auto";
+      
+      const dataUrl = await toPng(element, {
         quality: 1,
         pixelRatio: 3,
         backgroundColor: "#fefdf8",
+        width: element.scrollWidth,
+        height: element.scrollHeight,
+        style: {
+          overflow: "visible",
+        },
       });
+
+      // Restore original style
+      element.style.cssText = originalStyle;
 
       const link = document.createElement("a");
       link.download = "EXOS-Architecture-Diagram.png";
@@ -37,9 +54,25 @@ const ArchitectureDiagram = () => {
 
     setIsDownloading(true);
     try {
-      const dataUrl = await toSvg(diagramRef.current, {
+      const element = diagramRef.current;
+      const originalStyle = element.style.cssText;
+      
+      // Temporarily remove any clipping and ensure full size
+      element.style.overflow = "visible";
+      element.style.width = "auto";
+      element.style.height = "auto";
+      
+      const dataUrl = await toSvg(element, {
         backgroundColor: "#fefdf8",
+        width: element.scrollWidth,
+        height: element.scrollHeight,
+        style: {
+          overflow: "visible",
+        },
       });
+
+      // Restore original style
+      element.style.cssText = originalStyle;
 
       const link = document.createElement("a");
       link.download = "EXOS-Architecture-Diagram.svg";
