@@ -2,3 +2,6 @@ project_id = "mxrxgsnsljdlzmuvwpnu"
 
 [functions.market-intelligence]
 verify_jwt = false
+
+[functions.generate-market-insights]
+verify_jwt = false

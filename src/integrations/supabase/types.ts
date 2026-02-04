@@ -92,6 +92,63 @@ export type Database = {
         }
         Relationships: []
       }
+      market_insights: {
+        Row: {
+          category_name: string
+          category_slug: string
+          citations: Json | null
+          confidence_score: number
+          content: string
+          created_at: string
+          id: string
+          industry_name: string
+          industry_slug: string
+          is_active: boolean
+          key_trends: string[] | null
+          model_used: string | null
+          opportunities: string[] | null
+          processing_time_ms: number | null
+          raw_response: Json | null
+          risk_signals: string[] | null
+        }
+        Insert: {
+          category_name: string
+          category_slug: string
+          citations?: Json | null
+          confidence_score: number
+          content: string
+          created_at?: string
+          id?: string
+          industry_name: string
+          industry_slug: string
+          is_active?: boolean
+          key_trends?: string[] | null
+          model_used?: string | null
+          opportunities?: string[] | null
+          processing_time_ms?: number | null
+          raw_response?: Json | null
+          risk_signals?: string[] | null
+        }
+        Update: {
+          category_name?: string
+          category_slug?: string
+          citations?: Json | null
+          confidence_score?: number
+          content?: string
+          created_at?: string
+          id?: string
+          industry_name?: string
+          industry_slug?: string
+          is_active?: boolean
+          key_trends?: string[] | null
+          model_used?: string | null
+          opportunities?: string[] | null
+          processing_time_ms?: number | null
+          raw_response?: Json | null
+          risk_signals?: string[] | null
+        }
+        Relationships: []
+      }
       procurement_categories: {
         Row: {
           characteristics: string
