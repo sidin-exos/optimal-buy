@@ -11,11 +11,13 @@ interface IndustryCategory {
   industryName: string;
   categorySlug: string;
   categoryName: string;
+  geography?: string; // e.g., "EU", "US", "APAC", "Global"
 }
 
 interface GenerateRequest {
   combinations: IndustryCategory[];
   validateOnly?: boolean;
+  defaultGeography?: string; // Applied to combinations without explicit geography
 }
 
 // Plausible industry+category combinations with expected high confidence
@@ -51,17 +53,18 @@ const MARKET_INSIGHTS_PROMPT = `You are a senior procurement intelligence analys
 
 Industry: {{INDUSTRY}}
 Procurement Category: {{CATEGORY}}
+Geographic Focus: {{GEOGRAPHY}}
 
 Provide a detailed market intelligence briefing covering:
 
-1. **Current Market Conditions**: Supply/demand dynamics, pricing trends, capacity utilization
-2. **Key Market Players**: Major suppliers, market shares, recent M&A activity
-3. **Risk Signals**: Supply chain disruptions, geopolitical factors, regulatory changes
-4. **Price Drivers**: Raw material costs, labor, energy, logistics
-5. **Technology Trends**: Innovation, automation, sustainability initiatives
-6. **Procurement Opportunities**: Timing recommendations, negotiation leverage points, alternative sources
+1. **Current Market Conditions**: Supply/demand dynamics, pricing trends, capacity utilization in {{GEOGRAPHY}}
+2. **Key Market Players**: Major suppliers in {{GEOGRAPHY}}, market shares, recent M&A activity
+3. **Risk Signals**: Supply chain disruptions, geopolitical factors, regulatory changes affecting {{GEOGRAPHY}}
+4. **Price Drivers**: Raw material costs, labor, energy, logistics specific to {{GEOGRAPHY}}
+5. **Technology Trends**: Innovation, automation, sustainability initiatives in {{GEOGRAPHY}}
+6. **Procurement Opportunities**: Timing recommendations, negotiation leverage points, alternative sources in {{GEOGRAPHY}}
 
-Focus on actionable intelligence for procurement professionals. Include specific data points, percentages, and timeframes where possible.
+Focus on actionable intelligence for procurement professionals operating in {{GEOGRAPHY}}. Include specific data points, percentages, and timeframes where possible. Reference {{GEOGRAPHY}}-specific regulations, standards, and market dynamics.
 
 Structure your response with clear sections and bullet points. Be specific and quantitative.`;
 
@@ -112,11 +115,13 @@ async function validateCombination(
 async function generateMarketInsights(
   apiKey: string,
   industry: string,
-  category: string
+  category: string,
+  geography: string
 ): Promise<{ content: string; citations: string[]; usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number } | null }> {
   const prompt = MARKET_INSIGHTS_PROMPT
     .replace("{{INDUSTRY}}", industry)
-    .replace("{{CATEGORY}}", category);
+    .replace("{{CATEGORY}}", category)
+    .replace(/\{\{GEOGRAPHY\}\}/g, geography);
 
   const response = await fetch("https://api.perplexity.ai/chat/completions", {
     method: "POST",
@@ -198,12 +203,18 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const body = await req.json().catch(() => ({}));
-    const { combinations, validateOnly } = body as GenerateRequest;
+    const { combinations, validateOnly, defaultGeography = "EU" } = body as GenerateRequest;
 
     // Use provided combinations or default plausible ones
     const targetCombinations = combinations?.length > 0 
       ? combinations 
       : PLAUSIBLE_COMBINATIONS.slice(0, 5);
+    
+    // Apply default geography to combinations that don't have one
+    const combinationsWithGeo = targetCombinations.map(c => ({
+      ...c,
+      geography: c.geography || defaultGeography,
+    }));
 
     const results: Array<{
       industry: string;
@@ -217,9 +228,9 @@ serve(async (req) => {
     let totalTokens = 0;
     let totalCost = 0;
 
-    for (const combo of targetCombinations) {
+    for (const combo of combinationsWithGeo) {
       try {
-        console.log(`Processing: ${combo.industryName} + ${combo.categoryName}`);
+        console.log(`Processing: ${combo.industryName} + ${combo.categoryName} [${combo.geography}]`);
 
         // Step 1: Validate combination plausibility
         const validation = await validateCombination(
@@ -260,11 +271,12 @@ serve(async (req) => {
           .eq("category_slug", combo.categorySlug)
           .eq("is_active", true);
 
-        // Step 3: Generate market insights
+        // Step 3: Generate market insights with geography focus
         const insights = await generateMarketInsights(
           PERPLEXITY_API_KEY,
           combo.industryName,
-          combo.categoryName
+          combo.categoryName,
+          combo.geography
         );
 
         if (insights.usage) {
