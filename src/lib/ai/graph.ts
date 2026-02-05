@@ -6,6 +6,7 @@
  * - Routes AI inference through the sentinel-analysis edge function
  * - Implements self-correction loop for validation failures
  * - Supports both Lovable Gateway and Google AI Studio (BYOK)
+ * - Sends traces to LangSmith via REST API (browser-compatible)
  */
 
 import { anonymize, DEFAULT_ANONYMIZATION_CONFIG } from '../sentinel/anonymizer';
@@ -13,6 +14,15 @@ import { deanonymize } from '../sentinel/deanonymizer';
 import { validateResponse } from '../sentinel/validator';
 import type { SensitiveEntity } from '../sentinel/types';
 import { supabase } from '@/integrations/supabase/client';
+import { 
+  isTracingEnabled, 
+  logTracingConfig 
+} from './langsmith-client';
+import { 
+  traceStep, 
+  startPipelineTrace, 
+  endPipelineTrace 
+} from './trace-utils';
 
 /**
  * Model configuration type for provider selection
@@ -180,6 +190,17 @@ export async function runExosGraph(
   retryCount: number;
 }> {
   console.log(`🚀 Pipeline: Starting with config`, config);
+  
+  // Log tracing config on first run
+  if (isTracingEnabled()) {
+    logTracingConfig();
+  }
+
+  // Start parent trace for entire pipeline
+  const parentRunId = await startPipelineTrace("EXOS_Deep_Analysis", {
+    userQuery,
+    config,
+  });
 
   // Initialize state
   let state: PipelineState = {
@@ -194,38 +215,90 @@ export async function runExosGraph(
     retryCount: 0,
   };
 
-  // Step 1: Anonymize
-  state = stepAnonymize(state);
+  try {
+    // Step 1: Anonymize (traced)
+    const anonymizeResult = await traceStep(
+      "Sentinel_Anonymize",
+      "chain",
+      { query: userQuery },
+      () => stepAnonymize(state),
+      parentRunId
+    );
+    state = anonymizeResult.result;
 
-  // Retry loop for reasoning + validation
-  while (state.retryCount <= MAX_RETRIES) {
-    // Step 2: AI Reasoning
-    state = await stepReasoning(state);
+    // Retry loop for reasoning + validation
+    while (state.retryCount <= MAX_RETRIES) {
+      // Step 2: AI Reasoning (traced)
+      const reasoningResult = await traceStep(
+        "AI_Reasoning",
+        "llm",
+        { 
+          anonymizedQuery: state.anonymizedQuery,
+          attempt: state.retryCount + 1,
+          model: config.model,
+        },
+        () => stepReasoning(state),
+        parentRunId
+      );
+      state = reasoningResult.result;
 
-    // Step 3: Validate
-    state = stepValidate(state);
+      // Step 3: Validate (traced)
+      const validateResult = await traceStep(
+        "Validation_Check",
+        "chain",
+        { 
+          responseLength: state.aiResponse.length,
+          attempt: state.retryCount + 1,
+        },
+        () => stepValidate(state),
+        parentRunId
+      );
+      state = validateResult.result;
 
-    if (state.validationStatus === 'approved') {
-      break;
+      if (state.validationStatus === 'approved') {
+        break;
+      }
+
+      if (state.retryCount >= MAX_RETRIES) {
+        console.log('⚠️ Pipeline: Max retries reached, proceeding with best effort');
+        break;
+      }
+
+      console.log(`🔄 Pipeline: Retry ${state.retryCount}/${MAX_RETRIES}`);
     }
 
-    if (state.retryCount >= MAX_RETRIES) {
-      console.log('⚠️ Pipeline: Max retries reached, proceeding with best effort');
-      break;
-    }
+    // Step 4: Deanonymize (traced)
+    const deanonymizeResult = await traceStep(
+      "Deanonymize",
+      "chain",
+      { responseLength: state.aiResponse.length },
+      () => stepDeanonymize(state),
+      parentRunId
+    );
+    state = deanonymizeResult.result;
 
-    console.log(`🔄 Pipeline: Retry ${state.retryCount}/${MAX_RETRIES}`);
+    console.log(`🏁 Pipeline: Complete (status: ${state.validationStatus}, retries: ${state.retryCount})`);
+
+    // End parent trace with success
+    await endPipelineTrace(parentRunId, {
+      validationStatus: state.validationStatus,
+      confidenceScore: state.confidenceScore,
+      retryCount: state.retryCount,
+    });
+
+    return {
+      finalAnswer: state.finalAnswer,
+      confidenceScore: state.confidenceScore,
+      validationStatus: state.validationStatus,
+      retryCount: state.retryCount,
+    };
+  } catch (error) {
+    // End parent trace with error
+    await endPipelineTrace(
+      parentRunId,
+      { error: true },
+      error instanceof Error ? error.message : String(error)
+    );
+    throw error;
   }
-
-  // Step 4: Deanonymize
-  state = stepDeanonymize(state);
-
-  console.log(`🏁 Pipeline: Complete (status: ${state.validationStatus}, retries: ${state.retryCount})`);
-
-  return {
-    finalAnswer: state.finalAnswer,
-    confidenceScore: state.confidenceScore,
-    validationStatus: state.validationStatus,
-    retryCount: state.retryCount,
-  };
 }
