@@ -1,143 +1,124 @@
 
-# Contextual Company Detection and Dynamic Confidence Scoring
+# Financial Identifiers & False Positive Protection
 
 ## Overview
 
-Upgrade the Anonymizer in `src/lib/sentinel/anonymizer.ts` with two key improvements:
-1. **Smarter company detection** that catches informal names and B2B context patterns
-2. **Dynamic confidence scoring** that reflects real analysis quality
+Harden the Anonymizer for B2B financial documents by adding:
+1. **Financial Entity Detection** - IBAN, Credit Card, and Tax ID patterns
+2. **Exclusion List** - Prevent over-anonymization of common business terms
 
 ---
 
-## Part 1: Enhanced Company Detection Patterns
+## Part 1: New Financial Entity Types
 
-### Current State
+### Type Definition Updates
 
-The existing `company` patterns only detect:
-- Capitalized words with legal suffixes: `Acme Corp`, `TechVentures LLC`
-- All-caps names: `IBM`, `SAP`
+**File:** `src/lib/sentinel/types.ts` (Line 14)
 
-### Gap Analysis
-
-| Input | Currently Detected? | Should Detect? |
-|-------|---------------------|----------------|
-| `acme ltd` | No | Yes |
-| `nvidia gmbh` | No | Yes |
-| `Vendor: TechSolutions` | No | Yes |
-| `Supplier: nexgen` | No | Yes |
-
-### New Patterns to Add
-
-**Pattern 1: Case-Insensitive Legal Suffixes**
-
-Detects any word(s) followed by a legal suffix, regardless of capitalization.
+Add three new entity types to the union:
 
 ```typescript
-// Matches: "acme ltd", "nvidia GmbH", "tech solutions inc."
-/\b[\w]+(?:\s+[\w]+)*\s+(?:Inc|LLC|Ltd|GmbH|Corp|Co|S\.A\.|NV|Pty|AG|PLC)\.?\b/gi
+type: 'company' | 'person' | 'price' | 'contract' | 'location' | 'date' | 'percentage' | 'email' | 'phone' | 'iban' | 'credit_card' | 'tax_id' | 'custom';
 ```
 
-Key features:
-- Case-insensitive flag (`i`) allows matching lowercase
-- Supports multi-word names before suffix
-- Handles optional trailing period
+### New Patterns
 
-**Pattern 2: B2B Contextual Keyword Anchors**
+**File:** `src/lib/sentinel/anonymizer.ts`
 
-Detects proper nouns immediately following procurement-specific labels.
+Add to `ENTITY_PATTERNS`:
+
+| Entity | Pattern | Token Prefix | Notes |
+|--------|---------|--------------|-------|
+| IBAN | `/[A-Z]{2}\d{2}[ ]\d{4}[ ]\d{4}[ ]\d{4}[ ]\d{4}[ ]\d{0,8}\|[A-Z]{2}\d{2}[A-Z0-9]{10,30}/g` | `BANK_ACCT` | Space-separated and continuous formats |
+| Credit Card | `/(?:4[0-9]{12}(?:[0-9]{3})?\|5[1-5][0-9]{14}\|3[47][0-9]{13}\|6(?:011\|5[0-9]{2})[0-9]{12})/g` | `CC_NUM` | Visa, MC, Amex, Discover |
+| Tax ID | `/\b[A-Z]{2}[0-9A-Z]{8,12}\b\|\b[1-9]\d?-\d{7}\b/g` | `TAX_ID` | EU VAT and US EIN formats |
+
+### Token Prefix Additions
+
+Add to `TOKEN_PREFIXES`:
 
 ```typescript
-// Matches: "Vendor: TechSolutions", "Supplier: Acme Corp"
-/(?<=(?:Vendor|Supplier|Client|Partner|Counterparty|Customer|Contractor|Subcontractor):\s*)[\w]+(?:\s+[\w]+)*/gi
-```
-
-Key features:
-- Positive lookbehind for B2B keywords
-- Captures one or more words after the colon
-- Case-insensitive for flexibility
-
-### Pattern Priority
-
-The existing capitalized patterns remain first (most precise), new patterns added after:
-
-```text
-1. Capitalized + suffix (existing) - highest precision
-2. All-caps names (existing)
-3. Case-insensitive suffix (new) - catches lowercase
-4. Contextual anchors (new) - catches unlabeled names
+iban: 'BANK_ACCT',
+credit_card: 'CC_NUM',
+tax_id: 'TAX_ID',
 ```
 
 ---
 
-## Part 2: Dynamic Confidence Scoring
+## Part 2: Exclusion List (Allowlist)
 
-### Current State
+### Problem
 
-```typescript
-confidence: entityMap.size > 0 ? 0.85 : 1.0
-```
+Current patterns may incorrectly match common business terms:
+- "Invoice" could match capitalized word patterns
+- "Agreement" looks like a company name
+- "Manager" followed by a name gets partially masked
 
-This static approach does not reflect actual analysis quality.
+### Solution
 
-### New Heuristic Function
+Create a case-insensitive Set of protected terms that should never be masked.
 
-Create `calculateConfidence()` that applies context-aware penalties:
+### Implementation
 
-```text
-+---------------------------+-------------------------------------------+---------+
-| Penalty Name              | Condition                                 | Impact  |
-+---------------------------+-------------------------------------------+---------+
-| Low Density               | text.length > 500 AND entities < 2        | -0.15   |
-| Missing Actor             | (contract OR price found) AND             | -0.20   |
-|                           | (NO company AND NO person)                |         |
-| PII Mismatch              | email found AND NO person                 | -0.05   |
-+---------------------------+-------------------------------------------+---------+
-```
+**File:** `src/lib/sentinel/anonymizer.ts`
 
-### Function Signature
+Add constant after `TOKEN_PREFIXES`:
 
 ```typescript
-function calculateConfidence(
-  text: string,
-  entityMap: Map<string, SensitiveEntity>
-): number {
-  let confidence = 1.0;
-  
-  // Extract entity types present
-  const types = new Set([...entityMap.values()].map(e => e.type));
-  
-  // Low Density Penalty
-  if (text.length > 500 && entityMap.size < 2) {
-    confidence -= 0.15;
-  }
-  
-  // Missing Actor Penalty
-  const hasTransaction = types.has('contract') || types.has('price');
-  const hasActor = types.has('company') || types.has('person');
-  if (hasTransaction && !hasActor) {
-    confidence -= 0.20;
-  }
-  
-  // PII Mismatch Penalty
-  if (types.has('email') && !types.has('person')) {
-    confidence -= 0.05;
-  }
-  
-  // Clamp between 0.1 and 1.0
-  return Math.max(0.1, Math.min(1.0, confidence));
-}
+const COMMON_BUSINESS_TERMS = new Set([
+  'invoice', 'contract', 'agreement', 'total', 'subtotal',
+  'date', 'vendor', 'supplier', 'client', 'manager',
+  'director', 'chief', 'officer', 'bank', 'swift',
+  'iban', 'payment', 'due', 'amount', 'reference',
+  'purchase', 'order', 'quote', 'proposal', 'estimate',
+  'receipt', 'statement', 'balance', 'credit', 'debit',
+  'tax', 'vat', 'net', 'gross', 'fee', 'charge',
+  'january', 'february', 'march', 'april', 'may', 'june',
+  'july', 'august', 'september', 'october', 'november', 'december',
+  'monday', 'tuesday', 'wednesday', 'thursday', 'friday',
+  'saturday', 'sunday'
+]);
 ```
 
 ### Integration Point
 
-Update line 231 in `anonymize()`:
+Modify the `anonymize()` function matching loop (around line 184-193):
 
 ```typescript
-// Before
-confidence: entityMap.size > 0 ? 0.85 : 1.0,
+while ((match = pattern.exec(text)) !== null) {
+  // Avoid duplicates and very short matches
+  if (match[0].length < 3) continue;
+  
+  // NEW: Skip common business terms (false positive protection)
+  if (COMMON_BUSINESS_TERMS.has(match[0].toLowerCase())) continue;
+  
+  allMatches.push({
+    type: entityType,
+    value: match[0],
+    index: match.index,
+    length: match[0].length,
+  });
+}
+```
 
-// After
-confidence: calculateConfidence(text, entityMap),
+---
+
+## Part 3: Configuration Updates
+
+### Default Entity Types
+
+Update `DEFAULT_ANONYMIZATION_CONFIG` to include new types:
+
+```typescript
+entityTypes: ['company', 'person', 'price', 'contract', 'email', 'phone', 'iban', 'credit_card', 'tax_id'],
+```
+
+### Confidence Scoring Update
+
+Add financial data to "Missing Actor" penalty logic:
+
+```typescript
+const hasTransaction = types.has('contract') || types.has('price') || types.has('iban') || types.has('credit_card');
 ```
 
 ---
@@ -146,35 +127,38 @@ confidence: calculateConfidence(text, entityMap),
 
 | File | Changes |
 |------|---------|
-| `src/lib/sentinel/anonymizer.ts` | Add 2 new company patterns, add `calculateConfidence()` function, update return statement |
+| `src/lib/sentinel/types.ts` | Add `'iban' \| 'credit_card' \| 'tax_id'` to entity type union |
+| `src/lib/sentinel/anonymizer.ts` | Add patterns, prefixes, exclusion list, update matching loop, update config |
 
 ---
 
 ## Test Cases
 
-### Company Detection
+### Financial Entity Detection
 
-| Input | Expected Token |
-|-------|----------------|
-| `invoice for acme ltd` | `[SUPPLIER_A]` for "acme ltd" |
-| `Vendor: TechSolutions` | `[SUPPLIER_A]` for "TechSolutions" |
-| `nvidia gmbh contract` | `[SUPPLIER_A]` for "nvidia gmbh" |
-| `Supplier: NextGen Systems` | `[SUPPLIER_A]` for "NextGen Systems" |
+| Input | Expected Output |
+|-------|-----------------|
+| `Payment to IBAN DE89 3704 0044 0532 0130 00` | `Payment to [BANK_ACCT_A]` |
+| `IBAN: GB82WEST12345698765432` | `IBAN: [BANK_ACCT_A]` |
+| `Card: 4111111111111111` | `Card: [CC_NUM_A]` |
+| `VAT number GB123456789` | `VAT number [TAX_ID_A]` |
+| `EIN: 12-3456789` | `EIN: [TAX_ID_A]` |
 
-### Confidence Scoring
+### False Positive Protection
 
-| Scenario | Expected Score |
-|----------|----------------|
-| Empty text, no entities | 1.0 |
-| Short text with 1 company | 1.0 |
-| 600 chars with only 1 price ($500) | 0.65 (low density + missing actor) |
-| Email without person name | 0.95 |
-| Contract + price but no company | 0.80 |
+| Input | Expected Output | Reason |
+|-------|-----------------|--------|
+| `Please sign the Agreement` | `Please sign the Agreement` | "Agreement" is protected |
+| `Manager: John Doe` | `Manager: [CONTACT_A]` | "Manager" protected, "John Doe" masked |
+| `Invoice #12345` | `Invoice #12345` | "Invoice" protected (but contract pattern may catch full ref) |
+| `Total amount due` | `Total amount due` | All three words protected |
 
 ---
 
 ## Technical Notes
 
-- **Lookbehind Support**: Modern browsers and Node.js 10+ support positive lookbehind. Edge functions (Deno) also support this.
-- **Pattern Order**: New patterns appended after existing ones to preserve current behavior for well-formatted text.
-- **No Breaking Changes**: Existing capitalized company detection remains primary; new patterns act as fallbacks.
+- **Pattern Priority**: Financial patterns (IBAN, CC) are highly specific and should match before general numeric patterns
+- **IBAN Validation**: Pattern is structural only; Luhn check not implemented (acceptable for anonymization use case)
+- **Credit Card**: Pattern covers major card types (Visa, MC, Amex, Discover) - simplified version without separators for safety
+- **Exclusion List**: Case-insensitive matching via `.toLowerCase()` before Set lookup
+- **Performance**: Set lookup is O(1), minimal impact on processing time
