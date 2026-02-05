@@ -1,231 +1,208 @@
 
-# AI Model Configuration Panel
+# Connect LangGraph to Model Config & Edge Function
 
 ## Overview
 
-Create an admin settings panel that allows internal users to configure the AI provider used by the Sentinel analysis pipeline. This integrates with the existing BYOK (Bring Your Own Key) Google AI Studio backend support already implemented in `sentinel-analysis`.
+The LangGraph (`src/lib/ai/graph.ts`) currently uses a mock reasoning node. We need to make it **production-ready** by:
+1. Accepting model configuration at runtime
+2. Routing AI inference through the `sentinel-analysis` edge function (which securely holds API keys)
+
+This creates a transparent abstraction where the caller doesn't need to know which provider is being used.
 
 ---
 
-## Architecture
+## Architecture Decision
 
-### State Management: React Context + localStorage
+### Option A: Route ALL requests through Edge Function (Recommended)
+Both "Managed (Lovable)" and "Custom (Google)" go through `sentinel-analysis`.
 
-Create a `ModelConfigContext` that:
-- Wraps the app and provides `useModelConfig()` hook
-- Persists to `localStorage` under key `exos_model_config`
-- Syncs automatically on changes
-- Provides type-safe access to provider/model settings
+**Pros:**
+- Single code path, simpler maintenance
+- API keys stay server-side for both providers
+- Consistent logging and error handling
 
-### Config Structure
+**Cons:**
+- Slight latency from edge function hop
 
-```typescript
-interface ModelConfig {
-  provider: "lovable" | "google_ai_studio";
-  model: string; // e.g., "gemini-2.0-flash"
-  lastTested: string | null; // ISO timestamp
-}
-```
+### Option B: Client-side Lovable Gateway + Server-side Google
+Use client-side SDK for Lovable, edge function for Google.
 
----
+**Pros:**
+- Potentially faster for Lovable (no extra hop)
 
-## Files to Create
+**Cons:**
+- Requires LOVABLE_API_KEY on client (not available)
+- Two different code paths to maintain
+- LangChain SDK adds bundle size
 
-### 1. Model Configuration Context
-**File:** `src/contexts/ModelConfigContext.tsx`
-
-| Export | Purpose |
-|--------|---------|
-| `ModelConfigProvider` | Context provider wrapping app |
-| `useModelConfig()` | Hook to read/update config |
-| `ModelConfig` type | Type definition for settings |
-
-**Key Functions:**
-- `setProvider(provider)` - Switch between lovable/google_ai_studio
-- `setModel(model)` - Set the Google AI model variant
-- `markTested()` - Record successful connection test
-
-### 2. Settings Panel Component
-**File:** `src/components/settings/ModelConfigPanel.tsx`
-
-**UI Layout:**
-```text
-+------------------------------------------+
-|  AI Model Configuration                  |
-+------------------------------------------+
-|                                          |
-|  Provider                                |
-|  ( ) Managed (Lovable Gateway)           |
-|      Free tier, no setup required        |
-|                                          |
-|  ( ) Custom (Google AI Studio)           |
-|      Uses your BYOK API key              |
-|                                          |
-|  [Visible when Custom selected:]         |
-|  +--------------------------------------+|
-|  | Model                                ||
-|  | [Gemini 2.0 Flash           v]       ||
-|  +--------------------------------------+|
-|                                          |
-|  [Test Connection]  Status: Not tested   |
-|                                          |
-+------------------------------------------+
-```
-
-**Model Options for Google AI Studio:**
-| Value | Label | Description |
-|-------|-------|-------------|
-| `gemini-1.5-pro` | Gemini 1.5 Pro | Reasoning Powerhouse |
-| `gemini-1.5-flash` | Gemini 1.5 Flash | Speed/Cost efficiency |
-| `gemini-2.0-flash` | Gemini 2.0 Flash | Latest generation |
-| `gemini-2.5-flash` | Gemini 2.5 Flash | Newest experimental |
+**Recommendation: Option A** - Route all AI requests through the edge function for simplicity and security.
 
 ---
 
 ## Files to Modify
 
-### 1. App.tsx
-Wrap the app with `ModelConfigProvider` at the top level:
+### 1. `src/lib/ai/graph.ts`
 
+**Changes:**
+
+| Change | Details |
+|--------|---------|
+| Add `config` to state annotation | `{ provider, model }` configuration |
+| Update `runExosGraph` signature | Accept config parameter |
+| Replace mock `nodeReasoning` | Call `sentinel-analysis` via Supabase client |
+| Add import for Supabase client | Required for edge function calls |
+
+**New State Field:**
 ```typescript
-import { ModelConfigProvider } from "@/contexts/ModelConfigContext";
-
-const App = () => (
-  <ModelConfigProvider>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        ...
-      </TooltipProvider>
-    </QueryClientProvider>
-  </ModelConfigProvider>
-);
+config: Annotation<{ provider: 'lovable' | 'google_ai_studio'; model: string }>({
+  reducer: (_, next) => next,
+  default: () => ({ provider: 'lovable', model: 'gemini-2.0-flash' }),
+}),
 ```
 
-### 2. GenericScenarioWizard.tsx (lines 223-230)
-
-Update `handleAnalyze()` to read from context and pass BYOK flags:
-
-**Current code:**
+**Updated `nodeReasoning` Function:**
 ```typescript
-const result = await analyze(
-  scenario.id,
-  enrichedData,
-  industryContext || null,
-  categoryContext || null,
-  undefined,
-  selectedModel
-);
-```
+async function nodeReasoning(state: ExosState): Promise<Partial<ExosState>> {
+  const { provider, model } = state.config;
+  const useGoogleAIStudio = provider === 'google_ai_studio';
+  
+  // System prompt for procurement analysis
+  const systemPrompt = `You are EXOS, an expert procurement analyst...`;
+  
+  // Get the anonymized query from messages
+  const lastMessage = state.messages[state.messages.length - 1];
+  const userPrompt = typeof lastMessage.content === 'string' 
+    ? lastMessage.content 
+    : JSON.stringify(lastMessage.content);
 
-**Updated code:**
-```typescript
-const { provider, model: configModel } = useModelConfig();
-const useGoogleAIStudio = provider === "google_ai_studio";
-const effectiveModel = useGoogleAIStudio ? configModel : selectedModel;
+  // Route through edge function (secure proxy for both providers)
+  const { data, error } = await supabase.functions.invoke('sentinel-analysis', {
+    body: {
+      systemPrompt,
+      userPrompt,
+      model: useGoogleAIStudio ? undefined : model,
+      useGoogleAIStudio,
+      googleModel: useGoogleAIStudio ? model : undefined,
+      enableTestLogging: false,
+    },
+  });
 
-const result = await analyze(
-  scenario.id,
-  enrichedData,
-  industryContext || null,
-  categoryContext || null,
-  undefined,
-  effectiveModel,
-  useGoogleAIStudio
-);
-```
+  if (error || data?.error) {
+    throw new Error(data?.error || error?.message || 'AI inference failed');
+  }
 
-### 3. Account.tsx
-Add the `ModelConfigPanel` as a new settings section, visible only to internal users:
-
-```typescript
-import { ModelConfigPanel } from "@/components/settings/ModelConfigPanel";
-import { useShareableMode } from "@/hooks/useShareableMode";
-
-// Inside component:
-const { showTechnicalDetails } = useShareableMode();
-
-// In JSX, after subscription section:
-{showTechnicalDetails && (
-  <ModelConfigPanel />
-)}
-```
-
----
-
-## Test Connection Flow
-
-1. User clicks "Test Connection" button
-2. Button shows loading spinner, disables interaction
-3. Call `sentinel-analysis` with minimal payload:
-
-```typescript
-const { data, error } = await supabase.functions.invoke("sentinel-analysis", {
-  body: {
-    systemPrompt: "Respond with exactly: OK",
-    userPrompt: "Connection test",
-    useGoogleAIStudio: true,
-    googleModel: selectedModel,
-    enableTestLogging: false,
-  },
-});
-```
-
-4. **On success:** 
-   - Show success toast with model name
-   - Update `lastTested` timestamp in context
-   - Display "Last tested: X minutes ago"
-
-5. **On error:**
-   - Show error toast with specific message
-   - Common errors: "API key not configured", "Invalid model", "Rate limit"
-   - Keep button enabled for retry
-
----
-
-## Integration Summary
-
-| Component | Role |
-|-----------|------|
-| `ModelConfigContext` | Global state + localStorage persistence |
-| `ModelConfigPanel` | Admin UI in Account page |
-| `GenericScenarioWizard` | Reads config, passes flags to analyze() |
-| `useSentinel` | Already accepts `useGoogleAIStudio` flag |
-| `sentinel-analysis` | Already handles BYOK routing logic |
-
----
-
-## Visibility Rules
-
-The `ModelConfigPanel` will only render when:
-- `useShareableMode().showTechnicalDetails === true`
-
-This ensures external users viewing shared links never see admin settings.
-
----
-
-## Default Behavior
-
-| Setting | Default Value |
-|---------|---------------|
-| Provider | `"lovable"` (free managed gateway) |
-| Model | `"gemini-2.0-flash"` |
-| Last Tested | `null` |
-
-When provider is "lovable", the existing `ModelSelector` in GenericScenarioWizard continues to work as before (selecting Lovable AI Gateway models).
-
----
-
-## localStorage Key
-
-```
-exos_model_config
-```
-
-Example stored value:
-```json
-{
-  "provider": "google_ai_studio",
-  "model": "gemini-2.0-flash",
-  "lastTested": "2026-02-05T10:30:00.000Z"
+  return {
+    messages: [new AIMessage(data.content)],
+  };
 }
 ```
+
+**Updated Entry Point:**
+```typescript
+export async function runExosGraph(
+  userQuery: string,
+  config: { provider: 'lovable' | 'google_ai_studio'; model: string }
+): Promise<{
+  finalAnswer: string;
+  confidenceScore: number;
+  validationStatus: 'pending' | 'approved' | 'rejected';
+  retryCount: number;
+}> {
+  const result = await exosGraph.invoke({
+    userQuery,
+    config, // Pass config to state
+  });
+
+  return {
+    finalAnswer: result.finalAnswer,
+    confidenceScore: result.confidenceScore,
+    validationStatus: result.validationStatus,
+    retryCount: result.retryCount,
+  };
+}
+```
+
+---
+
+## Data Flow Diagram
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                        LANGGRAPH                                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌──────────┐    ┌─────────────┐    ┌──────────┐    ┌────────┐ │
+│  │Anonymize │───▶│  Reasoning  │───▶│ Validate │───▶│De-anon │ │
+│  └──────────┘    └─────────────┘    └──────────┘    └────────┘ │
+│                         │                 │                     │
+│                         │ (if rejected,   │                     │
+│                         │  retry ≤3)      │                     │
+│                         ◀─────────────────┘                     │
+│                         │                                       │
+│                         ▼                                       │
+│               ┌───────────────────┐                             │
+│               │ Edge Function     │                             │
+│               │ (sentinel-analysis)│                             │
+│               └─────────┬─────────┘                             │
+│                         │                                       │
+│          ┌──────────────┴──────────────┐                        │
+│          ▼                             ▼                        │
+│   ┌──────────────┐            ┌───────────────────┐            │
+│   │ Lovable AI   │            │ Google AI Studio  │            │
+│   │ Gateway      │            │ (BYOK)            │            │
+│   └──────────────┘            └───────────────────┘            │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Integration Points
+
+The LangGraph can be invoked from anywhere in the app:
+
+```typescript
+import { runExosGraph } from '@/lib/ai/graph';
+import { useModelConfig } from '@/contexts/ModelConfigContext';
+
+// Inside a component or hook
+const { provider, model } = useModelConfig();
+
+const result = await runExosGraph(userQuery, { provider, model });
+```
+
+For now, the existing `useSentinel` hook remains the primary integration point. The LangGraph provides an alternative architecture for more complex multi-step reasoning with automatic retries.
+
+---
+
+## Future Enhancement: "Deep Analysis" Button
+
+Once the graph is connected, you could add a "Deep Analysis" button that:
+1. Uses the full LangGraph pipeline (with retry loop)
+2. Provides more thorough validation
+3. Shows pipeline step progress
+
+This would be a separate feature request.
+
+---
+
+## Testing Strategy
+
+1. **Unit Test**: Mock `supabase.functions.invoke` and verify correct routing
+2. **Integration Test**: 
+   - Set provider to "Managed" → verify Lovable Gateway is used
+   - Set provider to "Custom" → verify Google AI Studio is used
+3. **Manual Test**:
+   - Check Network tab for `sentinel-analysis` calls
+   - Verify `useGoogleAIStudio` flag is correctly passed
+
+---
+
+## Technical Summary
+
+| Item | Details |
+|------|---------|
+| File Modified | 1 (`src/lib/ai/graph.ts`) |
+| New Dependencies | None (uses existing Supabase client) |
+| Breaking Changes | `runExosGraph` signature adds required `config` parameter |
+| Security | API keys remain server-side, never exposed to client |
