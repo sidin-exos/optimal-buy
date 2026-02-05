@@ -1,15 +1,13 @@
 /**
- * EXOS Decision Workflow - LangGraph Architecture
+ * EXOS Decision Workflow - Lightweight Orchestrator
  * 
- * Stateful graph for the decision pipeline with:
- * - Self-correction loops for validation failures
- * - Managed state for anonymization context
- * - Dynamic model configuration (Lovable Gateway / Google AI Studio)
- * - Secure API key handling via edge function proxy
+ * Replaces LangGraph with a simple async pipeline that:
+ * - Uses existing sentinel utilities (anonymizer, validator, deanonymizer)
+ * - Routes AI inference through the sentinel-analysis edge function
+ * - Implements self-correction loop for validation failures
+ * - Supports both Lovable Gateway and Google AI Studio (BYOK)
  */
 
-import { StateGraph, START, END, Annotation } from '@langchain/langgraph';
-import { BaseMessage, AIMessage, HumanMessage } from '@langchain/core/messages';
 import { anonymize, DEFAULT_ANONYMIZATION_CONFIG } from '../sentinel/anonymizer';
 import { deanonymize } from '../sentinel/deanonymizer';
 import { validateResponse } from '../sentinel/validator';
@@ -25,96 +23,18 @@ export type ModelConfigType = {
 };
 
 /**
- * State Annotation for LangGraph
- * Defines the schema for the agent's memory during a request lifecycle
+ * Pipeline state during execution
  */
-const ExosStateAnnotation = Annotation.Root({
-  // Input
-  userQuery: Annotation<string>({
-    reducer: (_, next) => next,
-    default: () => '',
-  }),
-  
-  // Model Configuration
-  config: Annotation<ModelConfigType>({
-    reducer: (_, next) => next,
-    default: () => ({ provider: 'lovable', model: 'gemini-2.0-flash' }),
-  }),
-  
-  // Security Layer
-  anonymizedQuery: Annotation<string>({
-    reducer: (_, next) => next,
-    default: () => '',
-  }),
-  entityMapJson: Annotation<string>({
-    reducer: (_, next) => next,
-    default: () => '[]',
-  }),
-  
-  // Reasoning
-  messages: Annotation<BaseMessage[]>({
-    reducer: (current, next) => [...current, ...next],
-    default: () => [],
-  }),
-  
-  // Output
-  finalAnswer: Annotation<string>({
-    reducer: (_, next) => next,
-    default: () => '',
-  }),
-  confidenceScore: Annotation<number>({
-    reducer: (_, next) => next,
-    default: () => 0,
-  }),
-  
-  // Status
-  validationStatus: Annotation<'pending' | 'approved' | 'rejected'>({
-    reducer: (_, next) => next,
-    default: () => 'pending',
-  }),
-  retryCount: Annotation<number>({
-    reducer: (_, next) => next,
-    default: () => 0,
-  }),
-});
-
-/**
- * Type for the state object
- */
-export type ExosState = typeof ExosStateAnnotation.State;
-
-/**
- * Helper: Serialize entity Map to JSON string
- */
-function serializeEntityMap(entityMap: Map<string, SensitiveEntity>): string {
-  return JSON.stringify(Array.from(entityMap.entries()));
-}
-
-/**
- * Helper: Deserialize JSON string back to entity Map
- */
-function deserializeEntityMap(json: string): Map<string, SensitiveEntity> {
-  try {
-    const entries = JSON.parse(json) as [string, SensitiveEntity][];
-    return new Map(entries);
-  } catch {
-    return new Map();
-  }
-}
-
-/**
- * Node 1: Anonymize
- * Calls the existing anonymizer to mask sensitive entities
- */
-async function nodeAnonymize(state: ExosState): Promise<Partial<ExosState>> {
-  const result = anonymize(state.userQuery, DEFAULT_ANONYMIZATION_CONFIG);
-  
-  return {
-    anonymizedQuery: result.anonymizedText,
-    entityMapJson: serializeEntityMap(result.entityMap),
-    confidenceScore: result.metadata.confidence,
-    messages: [new HumanMessage(result.anonymizedText)],
-  };
+interface PipelineState {
+  userQuery: string;
+  config: ModelConfigType;
+  anonymizedQuery: string;
+  entityMap: Map<string, SensitiveEntity>;
+  aiResponse: string;
+  finalAnswer: string;
+  confidenceScore: number;
+  validationStatus: 'pending' | 'approved' | 'rejected';
+  retryCount: number;
 }
 
 /**
@@ -131,28 +51,37 @@ Guidelines:
 
 Format your response with markdown headers for clarity.`;
 
+const MAX_RETRIES = 3;
+
 /**
- * Node 2: Reasoning
- * Routes AI inference through the sentinel-analysis edge function
- * Supports both Lovable Gateway and Google AI Studio (BYOK)
+ * Step 1: Anonymize sensitive data
  */
-async function nodeReasoning(state: ExosState): Promise<Partial<ExosState>> {
+function stepAnonymize(state: PipelineState): PipelineState {
+  console.log('🛡️ Pipeline: Anonymizing sensitive data...');
+  
+  const result = anonymize(state.userQuery, DEFAULT_ANONYMIZATION_CONFIG);
+  
+  return {
+    ...state,
+    anonymizedQuery: result.anonymizedText,
+    entityMap: result.entityMap,
+    confidenceScore: result.metadata.confidence,
+  };
+}
+
+/**
+ * Step 2: AI Reasoning via Edge Function
+ */
+async function stepReasoning(state: PipelineState): Promise<PipelineState> {
   const { provider, model } = state.config;
   const useGoogleAIStudio = provider === 'google_ai_studio';
-  
-  // Get the anonymized query from the last message
-  const lastMessage = state.messages[state.messages.length - 1];
-  const userPrompt = typeof lastMessage.content === 'string' 
-    ? lastMessage.content 
-    : JSON.stringify(lastMessage.content);
 
-  console.log(`🤖 LangGraph: Routing via Edge Function (provider: ${provider}, model: ${model})`);
+  console.log(`🧠 Pipeline: AI Reasoning (provider: ${provider}, model: ${model})`);
 
-  // Route through edge function (secure proxy for both providers)
   const { data, error } = await supabase.functions.invoke('sentinel-analysis', {
     body: {
       systemPrompt: EXOS_SYSTEM_PROMPT,
-      userPrompt,
+      userPrompt: state.anonymizedQuery,
       model: useGoogleAIStudio ? undefined : model,
       useGoogleAIStudio,
       googleModel: useGoogleAIStudio ? model : undefined,
@@ -161,146 +90,83 @@ async function nodeReasoning(state: ExosState): Promise<Partial<ExosState>> {
   });
 
   if (error) {
-    console.error('🚨 LangGraph: Edge function error', error);
+    console.error('🚨 Pipeline: Edge function error', error);
     throw new Error(error.message || 'AI inference failed');
   }
 
   if (data?.error) {
-    console.error('🚨 LangGraph: AI response error', data.error);
+    console.error('🚨 Pipeline: AI response error', data.error);
     throw new Error(data.error);
   }
 
   const responseContent = data?.content || data?.result || '';
-  
+
   if (!responseContent) {
     throw new Error('Empty response from AI');
   }
 
-  console.log('✅ LangGraph: Received AI response');
+  console.log('✅ Pipeline: Received AI response');
 
   return {
-    messages: [new AIMessage(responseContent)],
+    ...state,
+    aiResponse: responseContent,
   };
 }
 
 /**
- * Node 3: Validate
- * Checks AI response for hallucinations and quality
+ * Step 3: Validate response for hallucinations
  */
-async function nodeValidate(state: ExosState): Promise<Partial<ExosState>> {
-  // Get the last AI message
-  const lastMessage = state.messages.find(
-    (m) => m._getType() === 'ai'
-  );
-  
-  if (!lastMessage) {
-    return {
-      validationStatus: 'rejected',
-      retryCount: state.retryCount + 1,
-    };
-  }
+function stepValidate(state: PipelineState): PipelineState {
+  console.log('⚖️ Pipeline: Validating response...');
 
-  const responseText = typeof lastMessage.content === 'string' 
-    ? lastMessage.content 
-    : JSON.stringify(lastMessage.content);
+  const maskedTokens = Array.from(state.entityMap.keys());
 
-  // Get masked tokens from entity map
-  const entityMap = deserializeEntityMap(state.entityMapJson);
-  const maskedTokens = Array.from(entityMap.keys());
-
-  // Use existing validator
   const validationResult = validateResponse(
-    responseText,
+    state.aiResponse,
     state.anonymizedQuery,
-    'cost_breakdown', // Default scenario type
+    'cost_breakdown',
     maskedTokens
   );
 
-  // Determine status based on validation
   const hasCriticalIssues = validationResult.issues.some(
     (issue) => issue.severity === 'critical'
   );
 
   if (hasCriticalIssues || !validationResult.passed) {
+    console.log('⚠️ Pipeline: Validation failed, will retry');
     return {
+      ...state,
       validationStatus: 'rejected',
       retryCount: state.retryCount + 1,
       confidenceScore: validationResult.confidenceScore,
     };
   }
 
+  console.log('✅ Pipeline: Validation passed');
   return {
+    ...state,
     validationStatus: 'approved',
     confidenceScore: validationResult.confidenceScore,
   };
 }
 
 /**
- * Node 4: Deanonymize
- * Restores original entity names in the final answer
+ * Step 4: Deanonymize the final response
  */
-async function nodeDeanonymize(state: ExosState): Promise<Partial<ExosState>> {
-  // Get the last AI message
-  const lastAiMessage = [...state.messages]
-    .reverse()
-    .find((m) => m._getType() === 'ai');
+function stepDeanonymize(state: PipelineState): PipelineState {
+  console.log('🔓 Pipeline: Deanonymizing response...');
 
-  if (!lastAiMessage) {
-    return {
-      finalAnswer: 'No response generated.',
-    };
-  }
-
-  const responseText = typeof lastAiMessage.content === 'string'
-    ? lastAiMessage.content
-    : JSON.stringify(lastAiMessage.content);
-
-  // Restore entities
-  const entityMap = deserializeEntityMap(state.entityMapJson);
-  const result = deanonymize(responseText, entityMap);
+  const result = deanonymize(state.aiResponse, state.entityMap);
 
   return {
+    ...state,
     finalAnswer: result.restoredText,
   };
 }
 
 /**
- * Routing function: Determines whether to retry or exit
- */
-function shouldRetry(state: ExosState): 'node_reasoning' | 'node_deanonymize' {
-  const MAX_RETRIES = 3;
-
-  if (state.validationStatus === 'rejected' && state.retryCount < MAX_RETRIES) {
-    return 'node_reasoning'; // Loop back for retry
-  }
-
-  return 'node_deanonymize'; // Exit to final stage
-}
-
-/**
- * Build and compile the EXOS decision graph
- */
-const workflow = new StateGraph(ExosStateAnnotation)
-  .addNode('node_anonymize', nodeAnonymize)
-  .addNode('node_reasoning', nodeReasoning)
-  .addNode('node_validate', nodeValidate)
-  .addNode('node_deanonymize', nodeDeanonymize)
-  .addEdge(START, 'node_anonymize')
-  .addEdge('node_anonymize', 'node_reasoning')
-  .addEdge('node_reasoning', 'node_validate')
-  .addConditionalEdges('node_validate', shouldRetry, {
-    node_reasoning: 'node_reasoning',
-    node_deanonymize: 'node_deanonymize',
-  })
-  .addEdge('node_deanonymize', END);
-
-/**
- * Compiled and exported graph
- */
-export const exosGraph = workflow.compile();
-
-/**
- * Helper: Run a query through the graph
+ * Run the complete EXOS decision pipeline
+ * 
  * @param userQuery - The user's input query
  * @param config - Model configuration (provider and model name)
  */
@@ -313,24 +179,53 @@ export async function runExosGraph(
   validationStatus: 'pending' | 'approved' | 'rejected';
   retryCount: number;
 }> {
-  console.log(`🚀 LangGraph: Starting pipeline with config`, config);
-  
-  const result = await exosGraph.invoke({
+  console.log(`🚀 Pipeline: Starting with config`, config);
+
+  // Initialize state
+  let state: PipelineState = {
     userQuery,
     config,
-  });
+    anonymizedQuery: '',
+    entityMap: new Map(),
+    aiResponse: '',
+    finalAnswer: '',
+    confidenceScore: 0,
+    validationStatus: 'pending',
+    retryCount: 0,
+  };
 
-  console.log(`🏁 LangGraph: Pipeline complete (status: ${result.validationStatus}, retries: ${result.retryCount})`);
+  // Step 1: Anonymize
+  state = stepAnonymize(state);
+
+  // Retry loop for reasoning + validation
+  while (state.retryCount <= MAX_RETRIES) {
+    // Step 2: AI Reasoning
+    state = await stepReasoning(state);
+
+    // Step 3: Validate
+    state = stepValidate(state);
+
+    if (state.validationStatus === 'approved') {
+      break;
+    }
+
+    if (state.retryCount >= MAX_RETRIES) {
+      console.log('⚠️ Pipeline: Max retries reached, proceeding with best effort');
+      break;
+    }
+
+    console.log(`🔄 Pipeline: Retry ${state.retryCount}/${MAX_RETRIES}`);
+  }
+
+  // Step 4: Deanonymize
+  state = stepDeanonymize(state);
+
+  console.log(`🏁 Pipeline: Complete (status: ${state.validationStatus}, retries: ${state.retryCount})`);
 
   return {
-    finalAnswer: result.finalAnswer,
-    confidenceScore: result.confidenceScore,
-    validationStatus: result.validationStatus,
-    retryCount: result.retryCount,
+    finalAnswer: state.finalAnswer,
+    confidenceScore: state.confidenceScore,
+    validationStatus: state.validationStatus,
+    retryCount: state.retryCount,
   };
 }
-
-/**
- * Export helpers for external use
- */
-export { serializeEntityMap, deserializeEntityMap };
