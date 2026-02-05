@@ -47,6 +47,7 @@ import { DashboardType, getDashboardsForScenario } from "@/lib/dashboard-mapping
 import { useSentinel } from "@/hooks/useSentinel";
 import { useIndustryContext, useProcurementCategory } from "@/hooks/useContextData";
 import { useShareableMode } from "@/hooks/useShareableMode";
+import { useModelConfig } from "@/contexts/ModelConfigContext";
 import { useMarketInsightsAvailability } from "@/hooks/useMarketInsights";
 import { generateTestData } from "@/lib/test-data-factory";
 import {
@@ -201,8 +202,15 @@ const GenericScenarioWizard = ({ scenario }: GenericScenarioWizardProps) => {
 
   const canProceed = missingRequired.length === 0;
 
+  // Get model config from context for BYOK support
+  const { provider: configProvider, model: configModel } = useModelConfig();
+
   const handleAnalyze = async () => {
     setStep("analyzing");
+    
+    // Determine if we should use Google AI Studio (BYOK)
+    const useGoogleAIStudio = configProvider === "google_ai_studio";
+    const effectiveModel = useGoogleAIStudio ? configModel : selectedModel;
     
     // Include strategy and market insights in form data for AI grounding
     const enrichedData = {
@@ -226,7 +234,8 @@ const GenericScenarioWizard = ({ scenario }: GenericScenarioWizardProps) => {
       industryContext || null,
       categoryContext || null,
       undefined, // config
-      selectedModel // pass the selected model
+      effectiveModel, // pass the effective model (from config or selector)
+      useGoogleAIStudio // pass the BYOK flag
     );
 
     if (result?.success) {

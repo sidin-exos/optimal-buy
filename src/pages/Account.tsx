@@ -8,6 +8,8 @@ import { Separator } from "@/components/ui/separator";
 import Header from "@/components/layout/Header";
 import { User, CreditCard, LogOut, Loader2, Check, Zap, Shield, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useShareableMode } from "@/hooks/useShareableMode";
+import { ModelConfigPanel } from "@/components/settings/ModelConfigPanel";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 const subscriptionPlans = [
@@ -44,6 +46,7 @@ const subscriptionPlans = [
 const Account = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { showTechnicalDetails } = useShareableMode();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -170,6 +173,11 @@ const Account = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* AI Model Configuration Panel (internal users only) */}
+          {showTechnicalDetails && (
+            <ModelConfigPanel />
+          )}
 
           <Separator className="my-8" />
 
