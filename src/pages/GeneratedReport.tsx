@@ -110,6 +110,9 @@ const GeneratedReport = () => {
   }
 
   const { scenarioTitle, scenarioId, analysisResult, formData, timestamp, selectedDashboards = [] } = state;
+  
+  // Ensure analysisResult is never null for rendering
+  const safeAnalysisResult = analysisResult ?? '';
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -157,7 +160,7 @@ const GeneratedReport = () => {
     return keyPoints.length > 0 ? keyPoints : lines.slice(0, 5).map(cleanMarkdown).filter(Boolean);
   };
 
-  const keyPoints = extractKeyPoints(analysisResult);
+  const keyPoints = extractKeyPoints(safeAnalysisResult);
 
   return (
     <div className="min-h-screen gradient-hero">
@@ -219,7 +222,7 @@ const GeneratedReport = () => {
             {/* Export Actions */}
             <ReportExportButtons
               scenarioTitle={scenarioTitle}
-              analysisResult={analysisResult}
+              analysisResult={safeAnalysisResult}
               formData={formData}
               timestamp={timestamp}
               selectedDashboards={selectedDashboards}
@@ -276,7 +279,7 @@ const GeneratedReport = () => {
                       <DashboardRenderer
                         dashboardType={dashboardType}
                         scenarioTitle={scenarioTitle}
-                        analysisResult={analysisResult}
+                        analysisResult={safeAnalysisResult}
                         formData={formData}
                       />
                     </motion.div>
@@ -293,7 +296,7 @@ const GeneratedReport = () => {
               <CardContent>
                 <div className="prose prose-sm max-w-none dark:prose-invert">
                   <div className="text-foreground bg-secondary/30 rounded-lg p-5 border border-border space-y-4">
-                    {analysisResult.split('\n').map((line, i) => {
+                    {safeAnalysisResult.split('\n').map((line, i) => {
                       // Check if line starts with hash headers (###, ####, etc.)
                       const hashMatch = line.match(/^(#{1,4})\s*(.*)$/);
                       const isHashHeader = !!hashMatch;
