@@ -1,9 +1,12 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, Sparkles, AlertTriangle, FlaskConical, Loader2, Wand2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Sparkles, AlertTriangle, FlaskConical, Loader2, Wand2, BrainCircuit } from "lucide-react";
 import { AnalysisPipelineAnimation } from "@/components/sentinel/AnalysisPipelineAnimation";
+import { DeepAnalysisPipeline } from "@/components/analysis/DeepAnalysisPipeline";
+import { DeepAnalysisResult } from "@/components/analysis/DeepAnalysisResult";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -50,6 +53,7 @@ import { useShareableMode } from "@/hooks/useShareableMode";
 import { useModelConfig } from "@/contexts/ModelConfigContext";
 import { useMarketInsightsAvailability } from "@/hooks/useMarketInsights";
 import { generateTestData } from "@/lib/test-data-factory";
+import { runExosGraph, type ModelConfigType } from "@/lib/ai/graph";
 import {
   DraftedParameters,
   draftParameters,
@@ -91,6 +95,17 @@ const GenericScenarioWizard = ({ scenario }: GenericScenarioWizardProps) => {
 
   // Market insights state
   const [isMarketInsightsActive, setIsMarketInsightsActive] = useState(false);
+
+  // Deep Analysis state (LangGraph pipeline)
+  const [isDeepAnalysisRunning, setIsDeepAnalysisRunning] = useState(false);
+  const [deepAnalysisStep, setDeepAnalysisStep] = useState(0);
+  const [deepAnalysisResult, setDeepAnalysisResult] = useState<{
+    finalAnswer: string;
+    confidenceScore: number;
+    validationStatus: 'pending' | 'approved' | 'rejected';
+    retryCount: number;
+  } | null>(null);
+  const [deepAnalysisError, setDeepAnalysisError] = useState<string | null>(null);
 
   // Fetch context data for AI grounding
   const { data: industryContext } = useIndustryContext(industrySlug);
@@ -246,6 +261,54 @@ const GenericScenarioWizard = ({ scenario }: GenericScenarioWizardProps) => {
     } else {
       setStep("review");
       toast.error(sentinelError?.message || "Analysis failed. Please try again.");
+    }
+  };
+
+  // Deep Analysis handler (LangGraph pipeline)
+  const handleDeepAnalysis = async () => {
+    setStep("analyzing");
+    setIsDeepAnalysisRunning(true);
+    setDeepAnalysisStep(0);
+    setDeepAnalysisResult(null);
+    setDeepAnalysisError(null);
+
+    // Start simulated step progress (4 steps, ~3s each)
+    let currentStepLocal = 0;
+    const progressInterval = setInterval(() => {
+      if (currentStepLocal < 3) {
+        currentStepLocal++;
+        setDeepAnalysisStep(currentStepLocal);
+      }
+    }, 3500);
+
+    try {
+      // Build query from form data
+      const queryText = Object.entries(formData)
+        .filter(([_, value]) => value) // Only include non-empty values
+        .map(([key, value]) => `${key}: ${value}`)
+        .join('\n');
+
+      const graphConfig: ModelConfigType = {
+        provider: configProvider,
+        model: configModel,
+      };
+
+      const result = await runExosGraph(queryText, graphConfig);
+
+      clearInterval(progressInterval);
+      setDeepAnalysisStep(4); // Complete all steps
+      setDeepAnalysisResult(result);
+      setAnalysisTimestamp(new Date().toISOString());
+      setStep("results");
+      toast.success("Deep Analysis complete!");
+    } catch (err) {
+      clearInterval(progressInterval);
+      const errorMessage = err instanceof Error ? err.message : "Analysis failed";
+      setDeepAnalysisError(errorMessage);
+      setStep("review");
+      toast.error(`Deep Analysis failed: ${errorMessage}`);
+    } finally {
+      setIsDeepAnalysisRunning(false);
     }
   };
 
@@ -659,17 +722,30 @@ const GenericScenarioWizard = ({ scenario }: GenericScenarioWizardProps) => {
                 <ArrowLeft className="w-4 h-4" />
                 Edit Data
               </Button>
-              <Button
-                variant="hero"
-                size="lg"
-                onClick={handleAnalyze}
-                disabled={!canProceed}
-                className="gap-2"
-              >
-                {!canProceed && <AlertTriangle className="w-4 h-4" />}
-                <Sparkles className="w-4 h-4" />
-                {canProceed ? "Analyze with AI" : "Complete Required Fields"}
-              </Button>
+              <div className="flex gap-3">
+                <Button
+                  variant="hero"
+                  size="lg"
+                  onClick={handleAnalyze}
+                  disabled={!canProceed || isDeepAnalysisRunning}
+                  className="gap-2"
+                >
+                  {!canProceed && <AlertTriangle className="w-4 h-4" />}
+                  <Sparkles className="w-4 h-4" />
+                  {canProceed ? "Analyze with AI" : "Complete Required Fields"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={handleDeepAnalysis}
+                  disabled={!canProceed || isDeepAnalysisRunning}
+                  className="gap-2 border-purple-500/50 hover:bg-purple-500/10"
+                >
+                  <BrainCircuit className="w-4 h-4" />
+                  Deep Analysis
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 uppercase">Beta</Badge>
+                </Button>
+              </div>
             </div>
           </motion.div>
         )}
@@ -682,19 +758,29 @@ const GenericScenarioWizard = ({ scenario }: GenericScenarioWizardProps) => {
             exit={{ opacity: 0 }}
             className="py-10"
           >
-            <div className="text-center mb-8">
-              <h3 className="font-display text-xl font-semibold mb-2">
-                Analyzing Your Data
-              </h3>
-              <p className="text-muted-foreground">
-                Running {scenario.title} analysis through EXOS Sentinel pipeline...
-              </p>
-            </div>
+            {isDeepAnalysisRunning ? (
+              <DeepAnalysisPipeline
+                status="running"
+                currentStepIndex={deepAnalysisStep}
+                errorMessage={deepAnalysisError || undefined}
+              />
+            ) : (
+              <>
+                <div className="text-center mb-8">
+                  <h3 className="font-display text-xl font-semibold mb-2">
+                    Analyzing Your Data
+                  </h3>
+                  <p className="text-muted-foreground">
+                    Running {scenario.title} analysis through EXOS Sentinel pipeline...
+                  </p>
+                </div>
 
-            <AnalysisPipelineAnimation
-              isProcessing={isProcessing}
-              currentApiStage={currentStage}
-            />
+                <AnalysisPipelineAnimation
+                  isProcessing={isProcessing}
+                  currentApiStage={currentStage}
+                />
+              </>
+            )}
           </motion.div>
         )}
 
@@ -705,58 +791,71 @@ const GenericScenarioWizard = ({ scenario }: GenericScenarioWizardProps) => {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
           >
-            <div className="rounded-lg border border-primary/30 bg-primary/10 p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <Sparkles className="w-8 h-8 text-primary" />
-                <h3 className="font-display text-xl font-semibold">
-                  Analysis Complete
-                </h3>
-              </div>
-              
-              {analysisResult ? (
-                <div className="prose prose-sm max-w-none dark:prose-invert">
-                  <div className="whitespace-pre-wrap text-foreground bg-card rounded-lg p-4 border border-border max-h-[500px] overflow-y-auto">
-                    {analysisResult}
+            {deepAnalysisResult ? (
+              <DeepAnalysisResult
+                result={deepAnalysisResult}
+                onStartOver={() => {
+                  setDeepAnalysisResult(null);
+                  setStep("input");
+                }}
+                onGenerateReport={handleGenerateReport}
+              />
+            ) : (
+              <>
+                <div className="rounded-lg border border-primary/30 bg-primary/10 p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Sparkles className="w-8 h-8 text-primary" />
+                    <h3 className="font-display text-xl font-semibold">
+                      Analysis Complete
+                    </h3>
+                  </div>
+                  
+                  {analysisResult ? (
+                    <div className="prose prose-sm max-w-none dark:prose-invert">
+                      <div className="whitespace-pre-wrap text-foreground bg-card rounded-lg p-4 border border-border max-h-[500px] overflow-y-auto">
+                        {analysisResult}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground">
+                      Your {scenario.title} analysis is ready.
+                    </p>
+                  )}
+                  
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    {scenario.outputs.map((output, i) => (
+                      <span
+                        key={i}
+                        className="px-3 py-1 rounded-full bg-secondary text-sm text-muted-foreground"
+                      >
+                        {output.split(":")[0]}
+                      </span>
+                    ))}
                   </div>
                 </div>
-              ) : (
-                <p className="text-muted-foreground">
-                  Your {scenario.title} analysis is ready.
-                </p>
-              )}
-              
-              <div className="flex flex-wrap gap-2 mt-4">
-                {scenario.outputs.map((output, i) => (
-                  <span
-                    key={i}
-                    className="px-3 py-1 rounded-full bg-secondary text-sm text-muted-foreground"
+
+                {/* Output Feedback */}
+                <OutputFeedback
+                  onFeedbackSubmit={handleFeedbackSubmit}
+                  onGenerateReport={handleGenerateReport}
+                  tokenUsage={tokenUsage}
+                  processingTimeMs={processingTimeMs}
+                  model={selectedModel}
+                />
+
+                <div className="flex justify-start">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={() => setStep("input")}
+                    className="gap-2"
                   >
-                    {output.split(":")[0]}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Output Feedback */}
-            <OutputFeedback
-              onFeedbackSubmit={handleFeedbackSubmit}
-              onGenerateReport={handleGenerateReport}
-              tokenUsage={tokenUsage}
-              processingTimeMs={processingTimeMs}
-              model={selectedModel}
-            />
-
-            <div className="flex justify-start">
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => setStep("input")}
-                className="gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Start Over
-              </Button>
-            </div>
+                    <ArrowLeft className="w-4 h-4" />
+                    Start Over
+                  </Button>
+                </div>
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
