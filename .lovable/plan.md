@@ -1,82 +1,80 @@
 
 
-# Update: EXOS Architecture Diagram Based on PROJECT_CONTEXT.md
+# Fix: EXOS Architecture Diagram - Correct Pipeline Flow
 
 ## Overview
 
-Refine the `ExosArchitectureDiagram.tsx` to accurately reflect the actual pipeline implementation from the codebase, while preserving the existing Miro-style visual design and color scheme.
+Update the `ExosArchitectureDiagram.tsx` to accurately reflect the actual `graph.ts` execution sequence, with proper positioning of Deanonymize and Validation stages.
 
 ---
 
-## Current vs Actual Architecture Comparison
+## Issue Analysis
 
-| Current Diagram | Actual Code (graph.ts) | Action |
-|----------------|------------------------|--------|
-| 4 Cloud AI Agents: Auditor, Optimizer, Strategist, Validator | Single "AI Reasoning" step via `sentinel-analysis` edge function | **Simplify** to single "Cloud AI" node + model selector |
-| Grounding as Stage 2 inside EXOS Intelligence | Grounding happens **before** pipeline starts (in GenericScenarioWizard) | **Move** grounding to preparation stage |
-| 3 separate Validation checks | Single `validateResponse()` function | **Simplify** validation layer |
-| No retry logic shown | Self-correction loop (up to 3 retries) | **Add** retry loop arrow |
-| No observability layer | LangSmith tracing via REST API | **Add** LangSmith node |
-| No provider selection | Lovable Gateway + Google AI Studio (BYOK) | **Add** provider toggle indicator |
+| Issue | Current Diagram | Actual Code (graph.ts) |
+|-------|-----------------|------------------------|
+| 1. Deanonymize position | Shown in Stage 3 before Cloud boundary | Should be **AFTER** AI response returns (line 271-278) |
+| 2. Validation timing | Shown alongside AI Reasoning inside EXOS Pipeline | Validation runs **after** receiving AI response (line 246-256) |
+| 3. Flow direction | Appears to be one-way through pipeline | Should show: Anonymize → Cloud → Validate → (Retry?) → Deanonymize |
 
 ---
 
-## Updated Architecture Flow
+## Corrected Flow Architecture
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                        CUSTOMER PREMISES                                     │
-│  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │ USER INPUT                                                             │  │
-│  │  [1] Scenario Wizard  [2] Industry Context  [3] Supplier Data  [4] Business Context │
-│  └───────────────────────────────────────────────────────────────────────┘  │
+│                        CUSTOMER PREMISES (Pre-Flight)                        │
+│  ┌─────────────────────────────────────────────────────────────────────────┐│
+│  │ USER INPUT: [1-4] Scenario · Industry · Supplier · Business Context     ││
+│  └─────────────────────────────────────────────────────────────────────────┘│
 │                                    ↓                                         │
-│  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │ CONTEXT PREPARATION (Pre-Pipeline)                                     │  │
-│  │  [5] Grounding Engine  [6] Market Intel (Perplexity)                  │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
+│  ┌─────────────────────────────────────────────────────────────────────────┐│
+│  │ CONTEXT PREPARATION: [5-6] Grounding Engine · Market Intel              ││
+│  └─────────────────────────────────────────────────────────────────────────┘│
 │                                    ↓                                         │
-│  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │ EXOS DECISION PIPELINE (graph.ts)                                      │  │
-│  │                                                                         │  │
-│  │  Stage 1              Stage 2                                          │  │
-│  │  [7] Sentinel         [8] AI Reasoning ──────────────┐                 │  │
-│  │      Anonymize           (via Edge Fn)              │                 │  │
-│  │         │                     ↓                     │ Retry           │  │
-│  │         │              [9] Validation ──────────────┘ Loop            │  │
-│  │         │                     │      (up to 3x)                       │  │
-│  │         │                     ↓                                        │  │
-│  │         └───────────→ [10] Deanonymize                                │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-│                                    │                                         │
-│  ┌────────────────────────────────────────────────────────────────────────┐ │
-│  │ [INFOSEC GATE] API Audit & Approval                                    │ │
-│  └────────────────────────────────────────────────────────────────────────┘ │
+│  ┌─────────────────────────────────────────────────────────────────────────┐│
+│  │ [7] SENTINEL ANONYMIZE (stepAnonymize) - Mask Sensitive Data            ││
+│  └─────────────────────────────────────────────────────────────────────────┘│
+│                                    ↓                                         │
+│  ┌────────────────────── INFOSEC GATE ─────────────────────────────────────┐│
+│  │  API Audit · DLP · Logging                                               ││
+│  └─────────────────────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────────────────────┘
                                      │
-                      "Masked Request" ↓ ↑ "AI Response"
+                     "Anonymized Request" ↓
                                      │
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                        CLOUD SERVICES (External)                            │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │ AI GATEWAY                                                           │   │
-│  │  [Lovable Gateway] ←→ Provider Toggle ←→ [Google AI Studio (BYOK)]  │   │
-│  │                                                                       │   │
-│  │  Models: Gemini 3 Flash · Gemini 2.5 Pro · GPT-5                     │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │ OBSERVABILITY                                                        │   │
-│  │  [LangSmith REST Client] ← Fire-and-Forget ← Pipeline Traces         │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────────────────────┐│
+│  │ [8] AI GATEWAY (stepReasoning via sentinel-analysis Edge Function)      ││
+│  │     Lovable Gateway ←→ Toggle ←→ Google AI Studio (BYOK)                ││
+│  │     Models: Gemini 3 Flash · Gemini 2.5 Pro · GPT-5                     ││
+│  └─────────────────────────────────────────────────────────────────────────┘│
+│  ┌─────────────────────────────────────────────────────────────────────────┐│
+│  │ [9] LANGSMITH OBSERVABILITY (REST API Tracing)                          ││
+│  └─────────────────────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────────────────────┘
-                                     ↓
+                                     │
+                       "AI Response" ↓
+                                     │
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                        CUSTOMER PREMISES (Output)                           │
-│  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │ OUTPUT                                                                 │  │
-│  │  [11] Executive Reports  [12] Dashboards  [13] Roadmaps  [14] Insights│  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
+│                        CUSTOMER PREMISES (Post-Flight)                       │
+│  ┌─────────────────────────────────────────────────────────────────────────┐│
+│  │ [10] RESPONSE VALIDATION (stepValidate) - Anti-Hallucination Check      ││
+│  │      • Token Integrity     • Golden Case Matching                        ││
+│  │      • Hallucination Check • Unsafe Content Detection                    ││
+│  │                                                                           ││
+│  │            ┌────────── RETRY LOOP (up to 3x) ──────────┐                 ││
+│  │            │  If validation fails → back to AI Gateway │                 ││
+│  │            └────────────────────────────────────────────┘                 ││
+│  └─────────────────────────────────────────────────────────────────────────┘│
+│                                    ↓ (If Validation Passes)                  │
+│  ┌─────────────────────────────────────────────────────────────────────────┐│
+│  │ [11] DEANONYMIZE (stepDeanonymize) - Entity Restoration                 ││
+│  └─────────────────────────────────────────────────────────────────────────┘│
+│                                    ↓                                         │
+│  ┌─────────────────────────────────────────────────────────────────────────┐│
+│  │ OUTPUT: [12-15] Executive Reports · Dashboards · Roadmaps · Insights    ││
+│  └─────────────────────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -84,89 +82,134 @@ Refine the `ExosArchitectureDiagram.tsx` to accurately reflect the actual pipeli
 
 ## Implementation Changes
 
-### 1. Replace "Cloud AI Agents" Section
+### 1. Split Customer Premises into Pre-Flight and Post-Flight
 
-**Before:** Grid of 4 agents (Auditor, Optimizer, Strategist, Validator)
+**Before:** Single "Customer Premises" container with Deanonymize inside
+**After:** Two distinct phases:
+- **Pre-Flight:** Input → Context Prep → Anonymize → InfoSec Gate
+- **Post-Flight:** Validation → Deanonymize → Output
 
-**After:** 
-- Single "AI Gateway" container with provider toggle
-- Two nodes: "Lovable Gateway" and "Google AI Studio (BYOK)"
-- Model list badge showing available models
-- LangSmith observability node below
+### 2. Move Validation to Post-Flight (After Cloud Response)
 
-### 2. Restructure EXOS Intelligence Section
+**Before:** Validation shown alongside AI Reasoning in "Stage 2" box
+**After:** Validation as dedicated container in "Post-Flight" section with explicit connection to:
+- Token Integrity Check (checkTokenIntegrity)
+- Hallucination Detection (checkForHallucinations)
+- Unsafe Content Detection (checkForUnsafeContent)
+- Golden Case Matching (matchGoldenCases)
 
-**Before:** 3 stages in a row (Anonymizer → Grounding → Market Intel)
+### 3. Correct Deanonymize Position
 
-**After:** 
-- **Context Preparation** (new container above pipeline): Grounding Engine + Market Intel
-- **Decision Pipeline** (main container): Anonymize → AI Reasoning → Validation (with retry loop arrow) → Deanonymize
+**Before:** Shown as "Stage 3" before InfoSec Gate
+**After:** Positioned after Validation passes, before Output
 
-### 3. Add Retry Loop Visualization
+### 4. Add Retry Loop Arrow from Validation back to Cloud
 
-- Curved arrow from Validation back to AI Reasoning
-- Label: "Retry (up to 3x)"
-- Color: warning orange
-
-### 4. Simplify Validation Layer
-
-**Before:** 3 separate checks (Hallucination, Calculation, Citation)
-
-**After:** Single "Validation Check" node with sublabel "Anti-Hallucination · Consistency"
-
-### 5. Add Observability Layer
-
-- New small container in Cloud section
-- LangSmith node with "REST API Tracing" sublabel
-- Connected to pipeline with dashed line
+**Visual:** Curved arrow from Validation container back up to Cloud section
+**Label:** "Retry if FAIL (up to 3x)"
+**Color:** Warning orange
 
 ---
 
-## Visual Elements to Add
+## Updated Node Numbering
 
-| Element | Icon | Color | Location |
-|---------|------|-------|----------|
-| Retry Loop Arrow | RotateCcw | Orange | Validation → AI Reasoning |
-| Provider Toggle | ToggleLeft | Purple | Between gateway nodes |
-| LangSmith Node | LineChart | Cyan | Observability container |
-| Models Badge | Cpu | Purple | Below AI Gateway |
-
----
-
-## Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/components/architecture/ExosArchitectureDiagram.tsx` | Complete restructure of sections |
-| `src/components/architecture/ArchitectureArrow.tsx` | Add support for curved/loop arrows (optional) |
+| # | Node | Phase | Function Reference |
+|---|------|-------|-------------------|
+| 1-4 | User Input (Scenario, Industry, Supplier, Business) | Pre-Flight | GenericScenarioWizard |
+| 5 | Grounding Engine | Pre-Flight | grounding.ts |
+| 6 | Market Intel | Pre-Flight | Perplexity API |
+| 7 | Sentinel Anonymize | Pre-Flight | stepAnonymize() |
+| 8 | AI Gateway | Cloud | stepReasoning() |
+| 9 | LangSmith | Cloud | langsmith-client.ts |
+| 10 | Response Validation | Post-Flight | stepValidate() |
+| 11 | Deanonymize | Post-Flight | stepDeanonymize() |
+| 12-15 | Output (Reports, Dashboards, Roadmaps, Insights) | Post-Flight | PDF components |
 
 ---
 
-## Node Numbering Update
+## Visual Layout Changes
 
-| # | Node | Description |
-|---|------|-------------|
-| 1 | Scenario Wizard | User input form |
-| 2 | Industry Context | Industry selector |
-| 3 | Supplier Data | Contract/spend data |
-| 4 | Business Context | Goals/constraints |
-| 5 | Grounding Engine | Private context injection |
-| 6 | Market Intel | Perplexity integration |
-| 7 | Sentinel Anonymize | Data masking (stepAnonymize) |
-| 8 | AI Reasoning | Edge function call (stepReasoning) |
-| 9 | Validation Check | Anti-hallucination (stepValidate) |
-| 10 | Deanonymize | Entity restoration (stepDeanonymize) |
-| 11 | Executive Reports | PDF output |
-| 12 | Dashboards | Interactive visualizations |
-| 13 | Roadmaps | Action plans |
-| 14 | Insights | Opportunities |
+### Section A: Pre-Flight (Green border)
+```
+┌── User Input ─────────────────────────┐
+│ [1] [2] [3] [4]                       │
+└───────────────────────────────────────┘
+              ↓
+┌── Context Preparation ────────────────┐
+│ [5] Grounding → [6] Market Intel      │
+└───────────────────────────────────────┘
+              ↓
+┌── Sentinel Anonymize ─────────────────┐
+│ [7] Mask PII/Commercial Data          │
+└───────────────────────────────────────┘
+              ↓
+┌── InfoSec Gate (Red) ─────────────────┐
+│ API Audit · DLP · Logging             │
+└───────────────────────────────────────┘
+```
+
+### Section B: Cloud Services (Purple dashed border)
+```
+┌── AI Gateway ─────────────────────────┐
+│ [8] Lovable ↔ Toggle ↔ Google BYOK    │
+│     Models: Gemini · GPT-5            │
+└───────────────────────────────────────┘
+              ↑ (Retry)
+┌── Observability ──────────────────────┐
+│ [9] LangSmith REST Client             │
+└───────────────────────────────────────┘
+```
+
+### Section C: Post-Flight (Blue border)
+```
+          ┌────── RETRY LOOP ──────┐
+          │                        │
+          ↓                        │
+┌── Response Validation ───────────│────┐
+│ [10] Anti-Hallucination         ─┘    │
+│      Token Integrity · Golden Cases   │
+└───────────────────────────────────────┘
+              ↓ (If PASS)
+┌── Deanonymize ────────────────────────┐
+│ [11] Entity Restoration               │
+└───────────────────────────────────────┘
+              ↓
+┌── Output ─────────────────────────────┐
+│ [12] [13] [14] [15]                   │
+└───────────────────────────────────────┘
+```
 
 ---
 
-## Technical Notes
+## Technical Implementation
 
-- Preserve existing color palette from `COLORS` object
-- Keep `ArchitectureNode` and `ArchitectureContainer` components unchanged
-- Add new icons from lucide-react: `RotateCcw`, `ToggleLeft`, `LineChart`, `Cpu`
-- Maintain export functionality via html-to-image
+### File to Modify
+`src/components/architecture/ExosArchitectureDiagram.tsx`
+
+### Key Changes
+
+1. **Restructure main layout** from 2 sections to 3 sections:
+   - Customer Premises (Pre-Flight)
+   - Cloud Services (External)
+   - Customer Premises (Post-Flight)
+
+2. **Move Validation container** from inside "EXOS Decision Pipeline" to "Post-Flight"
+
+3. **Move Deanonymize** from "Stage 3" to after Validation in "Post-Flight"
+
+4. **Add Retry Loop visualization** with upward arrow from Validation back to Cloud
+
+5. **Update legend** to include "Pre-Flight" and "Post-Flight" phases
+
+---
+
+## Code References Validated
+
+| Step | File | Function | Line |
+|------|------|----------|------|
+| Anonymize | graph.ts | stepAnonymize | 69-80 |
+| AI Call | graph.ts | stepReasoning | 85-124 |
+| Validate | graph.ts | stepValidate | 129-161 |
+| Retry Loop | graph.ts | while loop | 230-268 |
+| Deanonymize | graph.ts | stepDeanonymize | 166-175 |
 
