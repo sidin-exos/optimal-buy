@@ -1,205 +1,284 @@
 
 
-# Client-Side LangSmith Tracing Implementation
+# Refactor: Harden LangSmith Client for Production
 
-## Problem Statement
+## Overview
 
-The `langsmith` SDK's `traceable` function cannot run in browsers because it depends on `AsyncLocalStorage` from `node:async_hooks` - a Node.js-only module. This is a **known limitation** confirmed by the LangChain team (GitHub issue #81, #879).
-
-**Error encountered:**
-```
-"AsyncLocalStorage" is not exported by "__vite-browser-external", 
-imported by "node_modules/langsmith/dist/traceable.js"
-```
+Refactor `src/lib/ai/langsmith-client.ts` to be enterprise-grade with exponential backoff retry logic, strict TypeScript typing, and robust error handling—all while maintaining the fire-and-forget pattern and using only native browser APIs.
 
 ---
 
-## Solution: Use LangSmith REST API Directly
+## Current State
 
-Instead of using the `traceable` wrapper, we can manually send trace data to LangSmith using their REST API, which is fully browser-compatible.
-
-LangSmith provides two endpoints:
-- `POST /runs` - Create a new run (span)
-- `PATCH /runs/{id}` - Complete a run with outputs
+The existing client has:
+- Basic fire-and-forget pattern with simple `.catch()` blocks
+- Loose typing for run_type (only `"chain" | "llm" | "tool"`)
+- No retry logic for transient failures
+- Simple `fetch` calls that fail immediately on any error
 
 ---
 
-## Implementation Overview
+## Changes to Implement
 
-### Architecture
+### 1. Strict Type Definitions
+
+Add complete interfaces matching the LangSmith REST API contract:
+
+| Interface | Purpose |
+|-----------|---------|
+| `RunType` | Full set of run types: chain, llm, tool, retriever, embedding, parser |
+| `CreateRunPayload` | Strict contract for POST /runs request body |
+| `UpdateRunPayload` | Strict contract for PATCH /runs/{id} request body |
+| `RetryConfig` | Configuration for retry behavior |
+
+### 2. Native Retry Utilities
+
+Implement using only native `fetch` and `setTimeout`:
 
 ```text
-Browser (graph.ts)                    LangSmith EU API
-      │                                    │
-      ├── Start Parent Run ───────────────►│ POST /runs (EXOS_Deep_Analysis)
-      │                                    │
-      ├── Start Child: Anonymize ─────────►│ POST /runs (parent_run_id)
-      ├── End Child: Anonymize ───────────►│ PATCH /runs/{id}
-      │                                    │
-      ├── Start Child: Reasoning ─────────►│ POST /runs
-      ├── End Child: Reasoning ───────────►│ PATCH /runs/{id}
-      │                                    │
-      ├── ... (Validate, Deanonymize) ...  │
-      │                                    │
-      └── End Parent Run ─────────────────►│ PATCH /runs/{id}
+┌─────────────────────────────────────────────────────────────┐
+│  sleep(ms)           │ Promise wrapper for setTimeout       │
+├─────────────────────────────────────────────────────────────┤
+│  isRetryableStatus() │ Returns true for 429 and 5xx        │
+├─────────────────────────────────────────────────────────────┤
+│  fetchWithRetry()    │ Retry loop with exponential backoff │
+└─────────────────────────────────────────────────────────────┘
 ```
+
+**Default Configuration:**
+- `maxRetries`: 3
+- `baseDelayMs`: 100ms
+- `backoffFactor`: 2
+
+**Delay Sequence:** 100ms → 200ms → 400ms
+
+### 3. Retry Logic Behavior
+
+| HTTP Status | Action |
+|-------------|--------|
+| 2xx (Success) | Return immediately |
+| 400, 401, 403, 404 | Log warning, do NOT retry (client error) |
+| 429 (Rate Limited) | Retry with backoff |
+| 5xx (Server Error) | Retry with backoff |
+| Network Error | Retry with backoff |
+| All retries exhausted | Throw error to caller |
+
+### 4. Updated Function Signatures
+
+**`createRun(options: CreateRunOptions): Promise<string>`**
+- Uses `CreateRunPayload` for strict typing
+- Calls `fetchWithRetry()` with fire-and-forget `.catch()` wrapper
+- Returns run ID immediately (non-blocking)
+
+**`patchRun(runId: string, options: PatchRunOptions): Promise<void>`**
+- Uses `UpdateRunPayload` for strict typing
+- Calls `fetchWithRetry()` with fire-and-forget `.catch()` wrapper
+- Silently handles all failures
 
 ---
 
-## Files to Create
+## Implementation Details
 
-### 1. LangSmith REST Client
-**File:** `src/lib/ai/langsmith-client.ts`
-
-A lightweight browser-compatible client that:
-- Reads `VITE_LANGCHAIN_*` environment variables
-- Creates runs via `POST /runs`
-- Patches runs via `PATCH /runs/{id}`
-- Generates unique run IDs using `crypto.randomUUID()`
-- Handles parent-child relationships with `parent_run_id`
+### Type Definitions
 
 ```typescript
-// Key functions
-export function isTracingEnabled(): boolean;
-export function logTracingConfig(): void;
-export async function createRun(options: CreateRunOptions): Promise<string>;
-export async function patchRun(runId: string, outputs: object): Promise<void>;
+/** LangSmith API run types */
+type RunType = "chain" | "llm" | "tool" | "retriever" | "embedding" | "parser";
+
+/** Payload for POST /runs */
+interface CreateRunPayload {
+  id: string;
+  name: string;
+  run_type: RunType;
+  inputs: Record<string, unknown>;
+  start_time: string;
+  session_name: string;
+  parent_run_id?: string;
+  tags?: string[];
+  extra?: {
+    metadata?: Record<string, unknown>;
+  };
+}
+
+/** Payload for PATCH /runs/{id} */
+interface UpdateRunPayload {
+  outputs?: Record<string, unknown>;
+  error?: string;
+  end_time: string;
+}
+
+/** Retry configuration */
+interface RetryConfig {
+  maxRetries: number;
+  baseDelayMs: number;
+  backoffFactor: number;
+}
 ```
 
----
-
-### 2. Tracing Wrapper for Graph
-**File:** `src/lib/ai/trace-utils.ts`
-
-Helper functions to wrap step execution with tracing:
+### Retry Function
 
 ```typescript
-// Wraps a step function with before/after tracing
-export async function traceStep<T>(
-  stepName: string,
-  runType: "chain" | "llm",
-  inputs: object,
-  stepFn: () => T | Promise<T>,
-  parentRunId?: string
-): Promise<{ result: T; runId: string }>;
+const DEFAULT_RETRY_CONFIG: RetryConfig = {
+  maxRetries: 3,
+  baseDelayMs: 100,
+  backoffFactor: 2,
+};
+
+const sleep = (ms: number): Promise<void> => 
+  new Promise(resolve => setTimeout(resolve, ms));
+
+const isRetryableStatus = (status: number): boolean => 
+  status === 429 || (status >= 500 && status < 600);
+
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  config: RetryConfig = DEFAULT_RETRY_CONFIG
+): Promise<Response> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < config.maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+
+      if (response.ok) {
+        return response;
+      }
+
+      if (!isRetryableStatus(response.status)) {
+        // Non-retryable client error (4xx except 429)
+        return response;
+      }
+
+      // Retryable error - calculate delay and wait
+      if (attempt < config.maxRetries - 1) {
+        const delay = config.baseDelayMs * Math.pow(config.backoffFactor, attempt);
+        console.warn(`🔍 LangSmith: HTTP ${response.status}, retry ${attempt + 1}/${config.maxRetries} in ${delay}ms`);
+        await sleep(delay);
+      }
+    } catch (err) {
+      // Network error
+      lastError = err instanceof Error ? err : new Error(String(err));
+
+      if (attempt < config.maxRetries - 1) {
+        const delay = config.baseDelayMs * Math.pow(config.backoffFactor, attempt);
+        console.warn(`🔍 LangSmith: Network error, retry ${attempt + 1}/${config.maxRetries} in ${delay}ms`);
+        await sleep(delay);
+      }
+    }
+  }
+
+  // All retries exhausted
+  throw lastError ?? new Error("LangSmith: All retries exhausted");
+}
 ```
 
----
-
-## Files to Modify
-
-### 1. Type Definitions
-**File:** `src/vite-env.d.ts`
-
-Add TypeScript declarations for LangSmith environment variables:
+### Updated createRun
 
 ```typescript
-interface ImportMetaEnv {
-  readonly VITE_SUPABASE_URL: string;
-  readonly VITE_SUPABASE_PUBLISHABLE_KEY: string;
-  readonly VITE_SUPABASE_PROJECT_ID: string;
-  readonly VITE_LANGCHAIN_TRACING_V2?: string;
-  readonly VITE_LANGCHAIN_API_KEY?: string;
-  readonly VITE_LANGCHAIN_PROJECT?: string;
-  readonly VITE_LANGCHAIN_ENDPOINT?: string;
-}
+export async function createRun(options: CreateRunOptions): Promise<string> {
+  if (!isTracingEnabled()) {
+    return "";
+  }
 
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
+  const runId = crypto.randomUUID();
+  const startTime = new Date().toISOString();
+
+  const payload: CreateRunPayload = {
+    id: runId,
+    name: options.name,
+    run_type: options.run_type,
+    inputs: options.inputs,
+    start_time: startTime,
+    session_name: PROJECT,
+    parent_run_id: options.parent_run_id,
+    tags: options.tags,
+    extra: options.metadata ? { metadata: options.metadata } : undefined,
+  };
+
+  // Fire-and-forget with retry logic - never blocks pipeline
+  fetchWithRetry(
+    `${ENDPOINT}/runs`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": API_KEY,
+      },
+      body: JSON.stringify(payload),
+    }
+  ).catch((err) => {
+    console.warn("🔍 LangSmith: Failed to create run after retries", options.name, err);
+  });
+
+  return runId;
 }
 ```
 
-### 2. Pipeline Orchestrator
-**File:** `src/lib/ai/graph.ts`
+### Updated patchRun
 
-Instrument the `runExosGraph` function to:
-1. Check if tracing is enabled
-2. Create a parent run at start
-3. Create child runs for each step (Anonymize, Reasoning, Validate, Deanonymize)
-4. Patch runs with outputs when steps complete
+```typescript
+export async function patchRun(runId: string, options: PatchRunOptions): Promise<void> {
+  if (!isTracingEnabled() || !runId) {
+    return;
+  }
+
+  const payload: UpdateRunPayload = {
+    outputs: options.outputs,
+    error: options.error,
+    end_time: options.end_time || new Date().toISOString(),
+  };
+
+  // Fire-and-forget with retry logic - never blocks pipeline
+  fetchWithRetry(
+    `${ENDPOINT}/runs/${runId}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": API_KEY,
+      },
+      body: JSON.stringify(payload),
+    }
+  ).catch((err) => {
+    console.warn("🔍 LangSmith: Failed to patch run after retries", runId, err);
+  });
+}
+```
 
 ---
 
-## Prerequisites (User Action Required)
+## Safety Guarantees
 
-Before this feature will work, add these secrets in Lovable Cloud:
-
-| Secret Name | Value | Purpose |
-|-------------|-------|---------|
-| `VITE_LANGCHAIN_TRACING_V2` | `true` | Enable tracing |
-| `VITE_LANGCHAIN_API_KEY` | `lsv2_...` | Your LangSmith API key |
-| `VITE_LANGCHAIN_PROJECT` | `exos-mvp` | Project name in LangSmith |
-| `VITE_LANGCHAIN_ENDPOINT` | `https://eu.api.smith.langchain.com` | EU endpoint |
-
-**Security Note:** Exposing the API key to the browser is acceptable for internal/development use. For production, tracing should move server-side.
-
----
-
-## Expected LangSmith Trace Structure
-
-```text
-EXOS_Deep_Analysis (parent chain)
-├── Sentinel_Anonymize (chain)
-├── AI_Reasoning (llm) - attempt 1
-├── Validation_Check (chain) - attempt 1
-├── AI_Reasoning (llm) - attempt 2 (if retry)
-├── Validation_Check (chain) - attempt 2 (if retry)
-└── Deanonymize (chain)
-```
-
----
-
-## Technical Details
-
-### LangSmith REST API Format
-
-**POST /runs:**
-```json
-{
-  "id": "uuid",
-  "name": "Sentinel_Anonymize",
-  "run_type": "chain",
-  "inputs": { "query": "..." },
-  "start_time": "2026-02-05T10:00:00Z",
-  "session_name": "exos-mvp",
-  "parent_run_id": "parent-uuid"
-}
-```
-
-**PATCH /runs/{id}:**
-```json
-{
-  "outputs": { "result": "..." },
-  "end_time": "2026-02-05T10:00:05Z"
-}
-```
-
-### Key Implementation Points
-
-1. **No External Dependencies**: Uses native `fetch()` API
-2. **Background Sends**: Fire-and-forget pattern to not block pipeline
-3. **Error Tolerance**: Tracing failures don't break the main pipeline
-4. **Hierarchical Traces**: Uses `parent_run_id` to link child runs
+| Scenario | Behavior |
+|----------|----------|
+| API returns 429 (rate limited) | Retry with backoff up to 3 times |
+| API returns 503 (service unavailable) | Retry with backoff up to 3 times |
+| API returns 400/401/403 (client error) | Log warning, don't retry |
+| Network timeout/offline | Retry with backoff, then log warning |
+| All retries exhausted | Log warning to console, never throws to UI |
+| Invalid run ID passed | Early return, no network call |
+| Tracing disabled | Early return, no network call |
 
 ---
 
 ## Files Summary
 
-| File | Action | Purpose |
+| File | Action | Changes |
 |------|--------|---------|
-| `src/lib/ai/langsmith-client.ts` | Create | Browser-compatible LangSmith REST client |
-| `src/lib/ai/trace-utils.ts` | Create | Tracing wrapper utilities |
-| `src/vite-env.d.ts` | Modify | Add TypeScript types for env vars |
-| `src/lib/ai/graph.ts` | Modify | Integrate tracing into pipeline |
+| `src/lib/ai/langsmith-client.ts` | Modify | Add strict types, exponential backoff utility, update createRun/patchRun |
+
+No new files required. No changes to `trace-utils.ts` needed.
 
 ---
 
 ## Verification Steps
 
-1. Add the required secrets in Lovable Cloud
-2. Refresh the application
-3. Open browser console and check for: `LangSmith Tracing Config: { enabled: true, ... }`
-4. Trigger a "Deep Analysis" run from the scenario wizard
-5. Navigate to [eu.smith.langchain.com](https://eu.smith.langchain.com)
-6. View the `exos-mvp` project to see traces
+1. Run a Deep Analysis scenario
+2. Open DevTools Console
+3. Confirm tracing config is logged
+4. Optionally throttle network in DevTools to simulate instability
+5. Verify retry warnings appear in console (not errors)
+6. Verify pipeline completes successfully
+7. Check LangSmith dashboard for traces
 
