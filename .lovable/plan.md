@@ -1,71 +1,172 @@
 
 
-# Generate PROJECT_CONTEXT.md
+# Update: EXOS Architecture Diagram Based on PROJECT_CONTEXT.md
 
 ## Overview
 
-I'll create a comprehensive `PROJECT_CONTEXT.md` file concatenating the full contents of the critical AI infrastructure files. Since some requested files don't exist, I'll include the closest equivalents:
-
-| Requested File | Status | Included File |
-|---------------|--------|---------------|
-| `src/lib/ai/graph.ts` | ✅ Exists | Full content |
-| `src/lib/ai/langsmith-client.ts` | ✅ Exists | Full content |
-| `src/lib/ai/trace-utils.ts` | ✅ Related | Full content (part of AI infrastructure) |
-| `DeepAnalysisWizard.tsx` | ❌ Doesn't exist | Using `GenericScenarioWizard.tsx` + `DeepAnalysisPipeline.tsx` + `DeepAnalysisResult.tsx` |
-| `fetch-market-data` | ❌ Doesn't exist | Using `generate-market-insights/index.ts` + `sentinel-analysis/index.ts` |
-| `src/types/index.ts` | ❌ Doesn't exist | Using `src/lib/sentinel/types.ts` |
+Refine the `ExosArchitectureDiagram.tsx` to accurately reflect the actual pipeline implementation from the codebase, while preserving the existing Miro-style visual design and color scheme.
 
 ---
 
-## File Structure
+## Current vs Actual Architecture Comparison
+
+| Current Diagram | Actual Code (graph.ts) | Action |
+|----------------|------------------------|--------|
+| 4 Cloud AI Agents: Auditor, Optimizer, Strategist, Validator | Single "AI Reasoning" step via `sentinel-analysis` edge function | **Simplify** to single "Cloud AI" node + model selector |
+| Grounding as Stage 2 inside EXOS Intelligence | Grounding happens **before** pipeline starts (in GenericScenarioWizard) | **Move** grounding to preparation stage |
+| 3 separate Validation checks | Single `validateResponse()` function | **Simplify** validation layer |
+| No retry logic shown | Self-correction loop (up to 3 retries) | **Add** retry loop arrow |
+| No observability layer | LangSmith tracing via REST API | **Add** LangSmith node |
+| No provider selection | Lovable Gateway + Google AI Studio (BYOK) | **Add** provider toggle indicator |
+
+---
+
+## Updated Architecture Flow
 
 ```text
-PROJECT_CONTEXT.md
-├── Header & Description
-├── Table of Contents
-├── src/lib/ai/graph.ts (304 lines)
-├── src/lib/ai/langsmith-client.ts (252 lines)
-├── src/lib/ai/trace-utils.ts (109 lines)
-├── src/lib/sentinel/types.ts (192 lines)
-├── src/components/analysis/DeepAnalysisPipeline.tsx (166 lines)
-├── src/components/analysis/DeepAnalysisResult.tsx (135 lines)
-├── src/components/scenarios/GenericScenarioWizard.tsx (866 lines)
-├── supabase/functions/sentinel-analysis/index.ts (414 lines)
-└── supabase/functions/generate-market-insights/index.ts (432 lines)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        CUSTOMER PREMISES                                     │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │ USER INPUT                                                             │  │
+│  │  [1] Scenario Wizard  [2] Industry Context  [3] Supplier Data  [4] Business Context │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                    ↓                                         │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │ CONTEXT PREPARATION (Pre-Pipeline)                                     │  │
+│  │  [5] Grounding Engine  [6] Market Intel (Perplexity)                  │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                    ↓                                         │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │ EXOS DECISION PIPELINE (graph.ts)                                      │  │
+│  │                                                                         │  │
+│  │  Stage 1              Stage 2                                          │  │
+│  │  [7] Sentinel         [8] AI Reasoning ──────────────┐                 │  │
+│  │      Anonymize           (via Edge Fn)              │                 │  │
+│  │         │                     ↓                     │ Retry           │  │
+│  │         │              [9] Validation ──────────────┘ Loop            │  │
+│  │         │                     │      (up to 3x)                       │  │
+│  │         │                     ↓                                        │  │
+│  │         └───────────→ [10] Deanonymize                                │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                    │                                         │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │ [INFOSEC GATE] API Audit & Approval                                    │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                     │
+                      "Masked Request" ↓ ↑ "AI Response"
+                                     │
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        CLOUD SERVICES (External)                            │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │ AI GATEWAY                                                           │   │
+│  │  [Lovable Gateway] ←→ Provider Toggle ←→ [Google AI Studio (BYOK)]  │   │
+│  │                                                                       │   │
+│  │  Models: Gemini 3 Flash · Gemini 2.5 Pro · GPT-5                     │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │ OBSERVABILITY                                                        │   │
+│  │  [LangSmith REST Client] ← Fire-and-Forget ← Pipeline Traces         │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                     ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        CUSTOMER PREMISES (Output)                           │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │ OUTPUT                                                                 │  │
+│  │  [11] Executive Reports  [12] Dashboards  [13] Roadmaps  [14] Insights│  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Content Summary
+## Implementation Changes
 
-The document will contain:
+### 1. Replace "Cloud AI Agents" Section
 
-1. **AI Pipeline Core** (`graph.ts`, `langsmith-client.ts`, `trace-utils.ts`)
-   - EXOS Decision Workflow orchestrator
-   - Browser-compatible LangSmith REST client with exponential backoff
-   - Tracing utilities for pipeline instrumentation
+**Before:** Grid of 4 agents (Auditor, Optimizer, Strategist, Validator)
 
-2. **Type Definitions** (`sentinel/types.ts`)
-   - Complete type system for Sentinel pipeline
-   - Anonymization, grounding, validation, and orchestrator types
+**After:** 
+- Single "AI Gateway" container with provider toggle
+- Two nodes: "Lovable Gateway" and "Google AI Studio (BYOK)"
+- Model list badge showing available models
+- LangSmith observability node below
 
-3. **UI Components** (DeepAnalysis components + GenericScenarioWizard)
-   - Pipeline visualization component
-   - Analysis result display with confidence badges
-   - Full scenario wizard with form handling and AI integration
+### 2. Restructure EXOS Intelligence Section
 
-4. **Edge Functions** (sentinel-analysis, generate-market-insights)
-   - Main AI inference endpoint with retry logic
-   - Market intelligence generation with Perplexity integration
+**Before:** 3 stages in a row (Anonymizer → Grounding → Market Intel)
+
+**After:** 
+- **Context Preparation** (new container above pipeline): Grounding Engine + Market Intel
+- **Decision Pipeline** (main container): Anonymize → AI Reasoning → Validation (with retry loop arrow) → Deanonymize
+
+### 3. Add Retry Loop Visualization
+
+- Curved arrow from Validation back to AI Reasoning
+- Label: "Retry (up to 3x)"
+- Color: warning orange
+
+### 4. Simplify Validation Layer
+
+**Before:** 3 separate checks (Hallucination, Calculation, Citation)
+
+**After:** Single "Validation Check" node with sublabel "Anti-Hallucination · Consistency"
+
+### 5. Add Observability Layer
+
+- New small container in Cloud section
+- LangSmith node with "REST API Tracing" sublabel
+- Connected to pipeline with dashed line
 
 ---
 
-## Implementation
+## Visual Elements to Add
 
-I will create a single markdown file at `PROJECT_CONTEXT.md` in the project root with:
+| Element | Icon | Color | Location |
+|---------|------|-------|----------|
+| Retry Loop Arrow | RotateCcw | Orange | Validation → AI Reasoning |
+| Provider Toggle | ToggleLeft | Purple | Between gateway nodes |
+| LangSmith Node | LineChart | Cyan | Observability container |
+| Models Badge | Cpu | Purple | Below AI Gateway |
 
-- Clear section headers using `##` for each file
-- Complete file contents in TypeScript code blocks
-- No summarization - full raw content as requested
-- Line count annotations for reference
+---
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/components/architecture/ExosArchitectureDiagram.tsx` | Complete restructure of sections |
+| `src/components/architecture/ArchitectureArrow.tsx` | Add support for curved/loop arrows (optional) |
+
+---
+
+## Node Numbering Update
+
+| # | Node | Description |
+|---|------|-------------|
+| 1 | Scenario Wizard | User input form |
+| 2 | Industry Context | Industry selector |
+| 3 | Supplier Data | Contract/spend data |
+| 4 | Business Context | Goals/constraints |
+| 5 | Grounding Engine | Private context injection |
+| 6 | Market Intel | Perplexity integration |
+| 7 | Sentinel Anonymize | Data masking (stepAnonymize) |
+| 8 | AI Reasoning | Edge function call (stepReasoning) |
+| 9 | Validation Check | Anti-hallucination (stepValidate) |
+| 10 | Deanonymize | Entity restoration (stepDeanonymize) |
+| 11 | Executive Reports | PDF output |
+| 12 | Dashboards | Interactive visualizations |
+| 13 | Roadmaps | Action plans |
+| 14 | Insights | Opportunities |
+
+---
+
+## Technical Notes
+
+- Preserve existing color palette from `COLORS` object
+- Keep `ArchitectureNode` and `ArchitectureContainer` components unchanged
+- Add new icons from lucide-react: `RotateCcw`, `ToggleLeft`, `LineChart`, `Cpu`
+- Maintain export functionality via html-to-image
 
