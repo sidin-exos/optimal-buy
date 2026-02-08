@@ -1,124 +1,49 @@
 
 
-# Recreate Full Database Schema + Redeploy Edge Functions
+# Refactor: Lazy Load Recent Queries
 
-## Summary
+## Problem
+The `RecentQueries` component auto-fetches on mount via `useEffect`, causing unnecessary DB reads and UI flicker on every page load or hot-refresh.
 
-Generate a single SQL migration that recreates all 7 tables, 3 database functions, 2 triggers, and all hardened RLS policies from scratch, plus redeploy all 4 edge functions to the new instance.
+## Changes
 
----
+### File: `src/components/intelligence/RecentQueries.tsx`
 
-## SQL Migration -- Single Script
+**1. Remove auto-fetch**
+Delete the `useEffect` block (lines 39-41) that calls `onLoad()` on mount.
 
-The migration consolidates all 7 existing migrations into one idempotent script:
+**2. Add Refresh button in card header**
+Add a small icon button (using `RefreshCw` from lucide-react) next to the "Recent Queries" title. It calls `onLoad` on click and is disabled while `isLoading`.
 
-### Tables (6 total)
+**3. Update empty state**
+Replace the current "No queries yet" message with a friendly empty state that includes a "Load Recent History" button. This makes it clear the data hasn't been fetched yet (not that there's no data).
 
-1. **industry_contexts** -- Industry definitions with KPIs/constraints
-2. **procurement_categories** -- Procurement category reference data
-3. **test_prompts** -- Sentinel pipeline prompt archive
-4. **test_reports** -- AI response logs (FK to test_prompts)
-5. **shared_reports** -- Shareable report payloads with expiration
-6. **intel_queries** -- Market intelligence query logs
-7. **market_insights** -- AI-generated market intelligence
+**4. Track loaded state**
+Add a local `hasLoaded` boolean (via `useState`) that flips to `true` after the first successful `onLoad` call. This lets us show different empty-state messages:
+- Before load: "Click below to load your query history" + Load button
+- After load with no results: "No queries found. Start by searching above."
 
-### Database Functions (3)
+### No other files need changes
+- `MarketIntelligence.tsx` just passes `loadRecentQueries` as `onLoad` -- no auto-trigger there
+- `useMarketIntelligence.ts` hook is already on-demand
+- `QueryBuilder` submit is already user-triggered
 
-1. `update_updated_at_column()` -- Trigger function for timestamp management
-2. `create_shared_report(text, jsonb, timestamptz)` -- Security definer upsert
-3. `get_shared_report(text)` -- Security definer fetch with auto-cleanup
+## Technical Detail
 
-### Triggers (2)
-
-1. `update_industry_contexts_updated_at` on industry_contexts
-2. `update_procurement_categories_updated_at` on procurement_categories
-
-### RLS Policies (Hardened)
-
-| Table | SELECT | INSERT | UPDATE | DELETE |
-|-------|--------|--------|--------|--------|
-| industry_contexts | public | denied | denied | denied |
-| procurement_categories | public | denied | denied | denied |
-| test_prompts | public | authenticated | denied | denied |
-| test_reports | public | authenticated | denied | denied |
-| market_insights | public | denied (service role only) | denied | denied |
-| intel_queries | public | denied (service role only) | denied | denied |
-| shared_reports | denied (all) | denied (all) | denied (all) | denied (all) |
-
-shared_reports access is exclusively through security definer functions.
-
-### Indexes (10)
-
-- `idx_test_prompts_scenario`, `idx_test_prompts_created`
-- `idx_test_reports_prompt`, `idx_test_reports_created`
-- `idx_shared_reports_expires_at`
-- `idx_intel_queries_type_created`, `idx_intel_queries_success`
-- `idx_market_insights_combo`, `idx_market_insights_active` (partial), `idx_market_insights_created`
-- `idx_unique_active_insight` (partial unique)
-
-### Grants
-
-- `REVOKE ALL ON shared_reports FROM anon, authenticated`
-- `GRANT EXECUTE ON create_shared_report TO anon, authenticated`
-- `GRANT EXECUTE ON get_shared_report TO anon, authenticated`
-
----
-
-## Edge Functions (4) -- Redeploy
-
-All 4 functions plus the shared utility will be redeployed:
-
-1. **sentinel-analysis** -- AI procurement analysis pipeline (Gemini / Lovable AI Gateway with retry + fallback)
-2. **market-intelligence** -- Perplexity-powered market intelligence queries
-3. **generate-market-insights** -- Batch market insights generation with validation
-4. **generate-test-data** -- AI test data generation with trick library
-
-Config (all `verify_jwt = false`):
 ```text
-[functions.market-intelligence]
-verify_jwt = false
+Before:
+  Component mounts -> useEffect fires -> onLoad() -> DB query
 
-[functions.generate-market-insights]
-verify_jwt = false
-
-[functions.sentinel-analysis]
-verify_jwt = false
+After:
+  Component mounts -> shows empty state with "Load" button
+  User clicks button -> onLoad() -> DB query -> results shown
+  User clicks refresh icon -> onLoad() -> updated results
 ```
 
----
+## UX States
 
-## Required Secrets
-
-Verify these secrets are configured on the new instance:
-
-| Secret | Used By |
-|--------|---------|
-| PERPLEXITY_API_KEY | market-intelligence, generate-market-insights |
-| GOOGLE_AI_STUDIO_KEY | sentinel-analysis (BYOK mode) |
-| LOVABLE_API_KEY | sentinel-analysis (gateway fallback) |
-| VITE_LANGCHAIN_API_KEY | _shared/langsmith.ts (tracing) |
-| VITE_LANGCHAIN_PROJECT | _shared/langsmith.ts |
-| VITE_LANGCHAIN_ENDPOINT | _shared/langsmith.ts |
-| VITE_LANGCHAIN_TRACING_V2 | _shared/langsmith.ts |
-| SUPABASE_URL | Auto-provided |
-| SUPABASE_SERVICE_ROLE_KEY | Auto-provided |
-| SUPABASE_ANON_KEY | Auto-provided |
-
----
-
-## Implementation Steps
-
-1. Run the consolidated SQL migration (creates all tables, functions, triggers, indexes, RLS policies, and grants)
-2. Redeploy all 4 edge functions
-3. Verify secrets are present on the new instance
-4. Test end-to-end: run a Sentinel analysis and a market intelligence query to confirm writes succeed via service role
-
----
-
-## Technical Notes
-
-- The `market_insights` table uses a partial unique index (`idx_unique_active_insight`) instead of a table constraint, to allow multiple inactive rows per industry/category combination
-- `shared_reports` uses `REVOKE ALL` + deny-all RLS policies, with access only through `SECURITY DEFINER` functions
-- The `generate-test-data` function has no `verify_jwt` entry in config.toml (defaults handled by the platform)
-- No data migration is included -- this is schema-only. If you need to preserve existing data, export it from the old instance first.
+1. **Initial** -- Card with "Load Recent History" button, no spinner, no data
+2. **Loading** -- Spinner visible, button disabled
+3. **Loaded with data** -- Scrollable list of queries, refresh button active in header
+4. **Loaded with no data** -- "No queries found" message, refresh button in header
 
