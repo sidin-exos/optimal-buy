@@ -1,126 +1,108 @@
 
 
-# New Page: EXOS Org Chart (Team Structure)
+# Server-Side LangSmith Tracing Implementation
 
-## Overview
+## Summary
 
-Create a new `/org-chart` page with a dedicated `OrgChartDiagram.tsx` component that visualizes the EXOS team structure. This diagram shows the CEO at the top with three scope branches (CTO, Head of AI, Delivery), each containing functional roles filled by AI today with notes on future human hires.
+Create a shared `LangSmithTracer` class for Deno Edge Functions and instrument `sentinel-analysis` and `market-intelligence` with hierarchical parent/child trace spans. All tracing is fire-and-forget -- zero impact on response latency.
 
 ---
 
-## Layout Structure
+## File 1: Create `supabase/functions/_shared/langsmith.ts`
+
+A lightweight, Deno-compatible tracing utility (~90 lines):
+
+- **`LangSmithTracer` class**
+  - Constructor reads `VITE_LANGCHAIN_API_KEY`, `VITE_LANGCHAIN_PROJECT`, `VITE_LANGCHAIN_ENDPOINT` from `Deno.env`
+  - Accepts `env` and `feature` constructor params for automatic tag injection
+  - `isEnabled()` -- returns false if API key missing or tracing not `"true"`
+  - `createRun(name, runType, inputs, opts?)` -- POST to `/runs`, returns UUID immediately, fetch is fire-and-forget
+  - `patchRun(runId, outputs?, error?)` -- PATCH to `/runs/{id}`, fire-and-forget
+- **No retries** (unlike browser client) -- edge function lifetime is limited, fire-and-forget is sufficient
+- **No external deps** -- pure `fetch` + `crypto.randomUUID()`
+- All calls wrapped in try/catch with `console.error` on failure
+
+---
+
+## File 2: Modify `supabase/functions/sentinel-analysis/index.ts`
+
+### Changes:
+1. Add `import { LangSmithTracer } from "../_shared/langsmith.ts"` at top
+2. Add `env?: string` to `AnalysisRequest` interface
+3. After parsing request body, instantiate tracer and create parent run:
 
 ```text
-                    ┌──────────────────────────┐
-                    │  YOU (CEO & Product Owner)│
-                    └──────────┬───────────────┘
-                               │
-              ┌────────────────┼────────────────┐
-              ↓                ↓                ↓
- ┌────────────────────┐ ┌─────────────────┐ ┌──────────────────┐
- │ CTO SCOPE          │ │ HEAD OF AI SCOPE│ │ DELIVERY SCOPE   │
- │ (Eng & Security)   │ │ (R&D & Prompts) │ │ (Execution)      │
- │                    │ │                 │ │                  │
- │ Role: CTO          │ │ Role: Head of AI│ │ Frontend Dev     │
- │ Backend & DB       │ │ Prompt Eng      │ │ QA & Testing     │
- │ InfoSec            │ │ EvalOps         │ │                  │
- │ DevOps & CI/CD     │ │ Knowledge (RAG) │ │                  │
- └────────────────────┘ └─────────────────┘ └──────────────────┘
-         │                      │
-         └──────────┬───────────┘
-                    ↓
-            Delivery Scope
+const tracer = new LangSmithTracer({ env: body.env, feature: "sentinel_analysis" });
+const parentRunId = tracer.createRun("sentinel-analysis", "chain", {
+  model, scenarioType, industrySlug, categorySlug,
+  systemPromptLength: systemPrompt.length,
+  userPromptLength: userPrompt.length,
+});
 ```
 
----
+4. Before each AI call (Google AI Studio path + Lovable Gateway path), create child LLM run:
 
-## Visual Design
+```text
+const llmRunId = tracer.createRun("ai-gateway-call", "llm",
+  { model, promptLengths: { system: systemPrompt.length, user: userPrompt.length } },
+  { parentRunId }
+);
+```
 
-Each function node will show three lines of info using a custom card-style layout:
-- **Function name** (bold)
-- **CURRENT**: What AI/tool fills this role today
-- **FOCUS**: Key responsibilities
+5. After AI response, patch child run with outputs (content length, token usage, latency)
+6. Before returning final response, patch parent run with success/error status
+7. On error paths, patch parent run with error string
 
-Color scheme:
-| Element | Color | Meaning |
-|---------|-------|---------|
-| CEO | `#e65100` (deep orange, thick border) | Human / current |
-| CTO Scope | `#1565c0` (blue) | Engineering |
-| Head of AI Scope | `#8b5cf6` (purple) | AI R&D |
-| Delivery Scope | `#f59e0b` (amber) | Factory |
-| "Future Hire" tags | `#2e7d32` (green badge) | Growth indicator |
+**No prompt content is sent to LangSmith** -- only metadata (lengths, model, scenario type, slugs).
 
 ---
 
-## Files to Create
+## File 3: Modify `supabase/functions/market-intelligence/index.ts`
 
-| File | Purpose |
-|------|---------|
-| `src/components/architecture/OrgChartDiagram.tsx` | Diagram component using ArchitectureNode, ArchitectureContainer, ArchitectureArrow |
-| `src/pages/OrgChart.tsx` | Page wrapper with PNG/SVG export (same pattern as DevWorkflow.tsx) |
+### Changes:
+1. Add `import { LangSmithTracer } from "../_shared/langsmith.ts"`
+2. Add `env?: string` to `IntelRequest` interface
+3. After parsing body, create parent run:
 
-## Files to Modify
+```text
+const tracer = new LangSmithTracer({ env: body.env, feature: "market_intelligence" });
+const parentRunId = tracer.createRun("market-intelligence", "chain", {
+  queryType, queryLength: query.length, recencyFilter, domainFilter,
+});
+```
 
-| File | Change |
-|------|--------|
-| `src/App.tsx` | Add route: `/org-chart` |
+4. After Perplexity response, create + patch child LLM run:
 
----
+```text
+const llmRunId = tracer.createRun("perplexity-sonar-pro", "llm",
+  { model: "sonar-pro", queryType },
+  { parentRunId }
+);
+tracer.patchRun(llmRunId, {
+  summaryLength: summary.length, citationCount: citations.length, tokenUsage, processingTimeMs,
+});
+```
 
-## Component Details: OrgChartDiagram.tsx
-
-### Row 1: CEO Node
-- Icon: `Crown` from lucide-react
-- Label: "YOU"
-- Sublabel: "CEO & Product Owner"
-- Color: deep orange, scaled up (scale-125)
-
-### Row 2: Three-column branch
-- Three down arrows from CEO, one to each scope container
-
-### Row 3: Three Scope Containers side-by-side
-
-**CTO Scope** (blue dashed container):
-- Role card: "CTO / Lead Architect" with sublabel "CURRENT: Gemini Architect + Auditor" and green "FUTURE HIRE" badge
-- Three function nodes stacked:
-  - Backend & DB (Database icon) -- "Supabase + Lovable SQL"
-  - InfoSec & Compliance (ShieldCheck icon) -- "PII Masking, GDPR"
-  - DevOps & CI/CD (Server icon) -- "Lovable Cloud"
-
-**Head of AI Scope** (purple dashed container):
-- Role card: "Head of AI" with sublabel "CURRENT: Gemini Tech Lead + LangSmith" and green "FUTURE HIRE" badge
-- Three function nodes stacked:
-  - Prompt Engineering (MessageSquare icon) -- "System Prompts, Chains"
-  - Evaluation / EvalOps (LineChart icon) -- "Quality Metrics, Golden Datasets"
-  - Knowledge Base / RAG (Search icon) -- "Perplexity Integration"
-
-**Delivery Scope** (amber dashed container):
-- Two function nodes stacked:
-  - Frontend Dev (Bot icon) -- "Lovable (Fully Automated)"
-  - QA & Testing (CheckCircle icon) -- "Manual + Auto-Unit"
-
-### Row 4: Dashed arrows
-- CTO Scope and Head of AI Scope both connect down to Delivery Scope with dashed arrows labeled "Specs & Requirements"
-
-### Legend
-- Deep Orange: Human (You)
-- Blue: Engineering & Security
-- Purple: AI R&D & Prompts
-- Amber: Delivery / Factory
-- Green badge: Future Human Hire
+5. Patch parent run before returning response
+6. On error catch block, patch parent with error
 
 ---
 
-## Page: OrgChart.tsx
+## What This Does NOT Touch
 
-Same structure as DevWorkflow.tsx:
-- Header with back link to `/features`
-- Title: "EXOS Team Structure"
-- Subtitle: "AI-first organization with clear scope boundaries and future hire roadmap"
-- PNG/SVG download buttons
-- Diagram in `card-elevated` container
-- Three info cards:
-  1. "CTO Scope" - Engineering, Security, and Infrastructure
-  2. "Head of AI" - Prompt Engineering, Evaluation, and Knowledge Management
-  3. "Delivery" - Automated code generation with human QA oversight
+- Client-side `src/lib/ai/langsmith-client.ts` -- unchanged
+- `generate-market-insights` and `generate-test-data` -- deferred to a follow-up
+- Database schema -- no changes
+- UI -- no changes
+- Existing request/response contracts -- unchanged (the `env` field is optional, defaults to `"production"`)
+
+---
+
+## Expected Result in LangSmith
+
+The "EXOS" project will show:
+- **Hierarchical traces**: parent "chain" runs with child "llm" runs
+- **Tags**: `env:production` / `env:dev`, `feature:sentinel_analysis` / `feature:market_intelligence`, model name
+- **Metadata**: scenario type, industry/category slugs, query type, processing time
+- **No PII**: only lengths, model names, and slugs
 
