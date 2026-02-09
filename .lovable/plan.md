@@ -1,122 +1,102 @@
 
 
-# EXOS AI Guide -- Floating Chat Widget
+# Redesign EXOS AI Guide: Multi-Turn Conversational Flow
 
-## Overview
+## Summary
 
-A floating AI chat widget available on all pages. Uses a clean Service-Hook-UI architecture for easy swap to a real backend later. Includes typewriter effect for assistant messages, suggestion chips, glassmorphism styling, and full mobile responsiveness.
+Transform the chat from a one-shot keyword matcher into a guided multi-turn conversation. The "How to use EXOS?" button becomes the primary entry point. The bot walks users through 3-4 questions before recommending a scenario, then provides a comprehensive description of the recommended scenario.
 
-## New Files
+## Changes
 
-### 1. `src/lib/chat-service.ts` (Logic Layer)
+### 1. `src/components/chat/ChatWidget.tsx` -- Reorder Suggestions
 
-Pure function with no React dependencies -- easy to replace with an Edge Function call later.
+Move "How to use EXOS?" to the first position. Update the suggestions array:
 
-- `getMockAIResponse(input: string): Promise<string>`
-- Simulates network delay (random 1000-2000ms via `setTimeout`)
-- Keyword matching (case-insensitive, checks for substring):
-  - "заявк" -> guidance on creating a request
-  - "поставщик" -> supplier search guidance
-  - "как это работает" -> platform overview
-  - Default fallback -> generic help message
-- All strings in Russian per spec
+```text
+Before:
+  "Reduce costs" | "Evaluate suppliers" | "Review a contract" | "Help me choose"
 
-### 2. `src/hooks/use-exos-chat.tsx` (State Layer)
+After:
+  "How to use EXOS?" | "Reduce costs" | "Evaluate suppliers" | "Review a contract"
+```
 
-- `Message` type: `{ id: string; role: 'user' | 'assistant'; content: string; timestamp: Date }`
-- State: `messages: Message[]`, `isOpen: boolean`, `isTyping: boolean`
-- `sendMessage(content: string)`:
-  1. Appends user message with `crypto.randomUUID()` id
-  2. Sets `isTyping = true`
-  3. Awaits `getMockAIResponse(content)` from chat-service
-  4. Appends assistant message
-  5. Sets `isTyping = false`
-- `toggleChat()`: flips `isOpen`
-- `closeChat()`: sets `isOpen = false`
-- Returns `{ messages, isOpen, isTyping, sendMessage, toggleChat, closeChat }`
+The "How to use EXOS?" chip sends a trigger message like `"How to use EXOS?"` which activates the guided conversation flow.
 
-### 3. `src/components/chat/ChatMessage.tsx` (Message Bubble)
+### 2. `src/lib/chat-service.ts` -- Multi-Turn Conversation Engine
 
-- Props: `message: Message`, `onTextReveal?: () => void` (callback for scroll-to-bottom during typewriter)
-- **User messages**: `bg-primary text-primary-foreground`, right-aligned, no avatar
-- **Assistant messages**: `bg-muted/50 text-foreground`, left-aligned, with `Bot` icon avatar (small, `w-6 h-6`)
-- **Typewriter effect** (assistant only):
-  - `useState` for `displayedText`, `useEffect` with `setInterval` at ~20ms per character
-  - Calls `onTextReveal` on each character addition so parent can auto-scroll
-  - Shows full text immediately if message is not the latest (avoids re-animating old messages)
-- Timestamp formatted with `Intl.DateTimeFormat` (HH:mm) in muted text below bubble
-- Wrapped in `motion.div` with `initial={{ opacity: 0, y: 8 }}` `animate={{ opacity: 1, y: 0 }}`
+Replace the stateless keyword matcher with a **stateful conversation manager** that tracks conversation phase.
 
-### 4. `src/components/chat/ChatWidget.tsx` (Main Widget)
+**Architecture change:** The `getMockAIResponse` function signature changes to accept the full message history, not just the latest input:
 
-**Closed state:**
-- Fixed `bottom-6 right-6`, `z-50`
-- Circular button with `Sparkles` icon, `gradient-primary` background, `glow-effect` shadow
-- Tooltip bubble above button: "Нужна помощь?" -- auto-hides after 5s via `useEffect`/`setTimeout`, reappears on hover
-- Framer Motion `scale` spring animation on mount
+```typescript
+getMockAIResponse(messages: { role: string; content: string }[]): Promise<string>
+```
 
-**Open state (desktop):**
-- Fixed `bottom-6 right-6`, `w-[380px] h-[520px]`, `z-50`
-- `glass-effect` background (`backdrop-blur-md`, `bg-background/80`, `border border-border/50`)
-- Rounded `2xl`, shadow-lg
+This lets the service analyze the conversation context and determine which phase the user is in.
 
-**Open state (mobile -- uses `useIsMobile()`):**
-- Fixed `inset-0`, `w-full h-[100dvh]`, `z-50`
-- Same glass styling, no border-radius
+**Conversation Flow (for "How to use EXOS?" path):**
 
-**Header:**
-- "EXOS Assistant" with `Bot` icon
-- `X` (close) and `Minus` (minimize/close) buttons
+```text
+Phase 1 (Greeting):
+  Bot: Explains EXOS platform overview -- AI-powered procurement analysis
+       with 20+ scenarios across 4 categories. Asks: "What's your main
+       goal right now? Are you looking to save money, manage risk,
+       evaluate suppliers, or prepare documents?"
 
-**Body:**
-- `ScrollArea` with `flex-1` height
-- **Empty state**: greeting text + 3 suggestion chips as `Button variant="outline" size="sm"`:
-  - "Создать заявку"
-  - "Найти поставщиков"
-  - "Как это работает?"
-- Clicking a chip calls `sendMessage` with that text
-- **Typing indicator**: 3 animated dots (CSS `animate-pulse` with staggered delays) when `isTyping` is true
-- Auto-scroll to bottom on new messages and during typewriter effect via `useRef` + `scrollIntoView`
+Phase 2 (Goal Clarification):
+  User responds with goal area.
+  Bot: Narrows down within that area. Asks about what data/information
+       the user currently has available (e.g., "Do you have supplier
+       quotes, contract documents, or spend data handy?")
 
-**Footer:**
-- `Input` + `Send` icon button in a flex row
-- Submit on Enter key, disabled when `isTyping` or input is empty
-- `pb-[env(safe-area-inset-bottom)]` for iOS safe area
+Phase 3 (Context Gathering):
+  User describes available data.
+  Bot: Asks one more qualifying question about urgency/scope
+       (e.g., "Is this for an upcoming negotiation, a strategic review,
+       or an emergency situation?")
 
-**Animation:**
-- `AnimatePresence` wrapping the chat window
-- Enter: `scale: [0.9, 1]`, `opacity: [0, 1]`, origin bottom-right
-- Exit: reverse
+Phase 4 (Recommendation):
+  User responds.
+  Bot: Recommends 1-2 specific scenarios with a COMPREHENSIVE description:
+       - What the scenario does (logic)
+       - Typical use-cases (2-3 examples)
+       - What inputs are needed
+       - What outputs/dashboards it generates
+       - Limitations and caveats
+```
 
-## Modified Files
+**For direct topic chips** (e.g., "Reduce costs"), the bot still provides a quicker path but asks at least 1-2 clarifying questions before recommending.
 
-### `src/App.tsx`
+**Phase detection logic:** The service counts how many assistant messages are in the history and uses keyword analysis on the full conversation to determine which scenario area the user is interested in, then selects the appropriate next question or final recommendation.
 
-- Import `ChatWidget`
-- Add `<ChatWidget />` after `<Sonner />` and before `<BrowserRouter>`, so it renders globally on all routes
-- Since it's fixed-position with `z-50`, placement in the tree doesn't affect layout
+**Scenario knowledge base:** A lookup object mapping each scenario ID to a detailed description block including:
+- One-paragraph explanation of the analytical logic
+- 2-3 concrete use-case examples
+- Required inputs summary
+- Generated outputs/dashboards list
+- Explicit limitations (e.g., "This analysis relies on user-provided cost data and does not verify market prices independently")
 
-## Design Decisions
+This will cover key scenarios: Cost Breakdown, Volume Consolidation, Make vs Buy, TCO Analysis, Supplier Review, Risk Assessment, Contract Review, SOW Critic, Negotiation Prep, Category Strategy, and others.
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Typewriter location | ChatMessage component | Keeps the effect co-located with the bubble, parent just passes a scroll callback |
-| Service layer | Separate `chat-service.ts` | Single function to swap for `supabase.functions.invoke('chat')` later |
-| Mobile detection | Existing `useIsMobile()` hook | Reuses the 768px breakpoint already in the project |
-| ID generation | `crypto.randomUUID()` | No extra dependency, browser-native |
-| Timestamp format | `Intl.DateTimeFormat` | Already available, no `date-fns` needed for HH:mm |
-| Tooltip auto-hide | 5s setTimeout | Per spec, reappear on hover via CSS/state |
+### 3. `src/hooks/use-exos-chat.tsx` -- Pass Full History
 
-## Styling Notes
+Update `sendMessage` to pass the full messages array (including the new user message) to `getMockAIResponse` instead of just the content string.
 
-- Reuses existing design tokens: `glass-effect`, `gradient-primary`, `glow-effect`, `bg-muted/50`
-- Dark theme compatible by default (all colors use CSS variables)
-- Typing dots use the existing `animate-pulse` with custom delay offsets
+### 4. `src/components/chat/ChatMessage.tsx` -- Markdown Support
+
+Currently the typewriter renders plain text. Since the comprehensive scenario descriptions will use **bold**, bullet lists, etc., add basic markdown rendering (bold via `**text**` at minimum) to the message bubble. This keeps the rich descriptions readable.
+
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `src/lib/chat-service.ts` | Full rewrite: stateful multi-turn conversation engine with scenario knowledge base |
+| `src/hooks/use-exos-chat.tsx` | Pass message history to service instead of single string |
+| `src/components/chat/ChatWidget.tsx` | Reorder chips, "How to use EXOS?" first |
+| `src/components/chat/ChatMessage.tsx` | Add basic markdown rendering for bold/lists |
 
 ## Not Included
 
-- Real AI backend integration (architecture is ready for it)
-- Message persistence / database storage
-- Multi-language support (hardcoded Russian per spec)
-- Sound/notification on new messages
-
+- Real AI backend (still mocked with setTimeout)
+- Persistent conversation history across page reloads
+- Scenario deep-linking (clicking a scenario name in chat to navigate directly)
