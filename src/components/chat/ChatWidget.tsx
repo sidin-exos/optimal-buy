@@ -3,7 +3,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { X, Send, Bot, Sparkles, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useExosChat } from '@/hooks/use-exos-chat';
 import { ChatMessage } from './ChatMessage';
@@ -20,10 +19,19 @@ export function ChatWidget() {
   const isMobile = useIsMobile();
   const [inputValue, setInputValue] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const isNearBottom = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  }, []);
 
   const scrollToBottom = useCallback(() => {
-    scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
+    if (isNearBottom()) {
+      scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [isNearBottom]);
 
   useEffect(() => {
     scrollToBottom();
@@ -120,7 +128,7 @@ export function ChatWidget() {
         </div>
 
         {/* Body */}
-        <ScrollArea className="flex-1 px-4">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4">
           <div className="py-4 space-y-4">
             {messages.length === 0 && !isTyping && (
               <div className="space-y-4">
@@ -167,7 +175,7 @@ export function ChatWidget() {
 
             <div ref={scrollRef} />
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Footer */}
         <div className="px-4 py-3 border-t border-border/50" style={{ paddingBottom: isMobile ? `max(0.75rem, env(safe-area-inset-bottom))` : undefined }}>
