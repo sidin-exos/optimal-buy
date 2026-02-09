@@ -1,112 +1,45 @@
 
 
-# Founder's Commercial Dashboard + RBAC System
+# Fix: EXOS Logo on Technology Page
 
-## Overview
+## Problem
 
-Create a private admin dashboard at `/admin/dashboard` with role-based access control, North Star metric cards with manual editing, and an editable strategic hypothesis. Section 3 (Recent Signups) is deferred.
+The hero section logo on the Features/Technology page appears broken or incorrectly rendered on the published site. The logo uses a `scale-[1.8]` transform inside a `rounded-xl overflow-hidden` container, which can cause clipping and rendering artifacts -- especially at the hero size (w-24/w-32).
 
-## Database Changes
+## Root Cause
 
-### Migration 1: RBAC Foundation
+The `scale-[1.8]` approach is fragile. It scales the entire image element beyond its container bounds and relies on `overflow-hidden` to crop. This can cause:
+- Inconsistent rendering across browsers
+- The logo appearing zoomed into the wrong area
+- Blank/cut-off display when the image hasn't loaded or the container size shifts
 
-Creates the role system that will gate all admin features going forward.
+The same pattern is used in 3 places: hero section, SentinelCapabilities hub, and architecture note -- all in `Features.tsx` or its child components.
 
-- `app_role` enum with values `admin` and `user`
-- `user_roles` table (`id`, `user_id` FK to `auth.users`, `role`)
-- RLS enabled -- only admins can SELECT (using `has_role()` security definer function)
-- Seed: user `5e31324d-ae8d-4abc-91dd-dd493138bc25` gets `admin` role
-- Skip recreating `update_updated_at_column` (already exists)
+## Fix
 
-### Migration 2: Founder Metrics Table
+Replace the `scale-[1.8]` hack with proper `object-cover` sizing and use `object-position` to center on the logo's focal point. This gives a stable, predictable crop without relying on transform scaling.
 
-- `founder_metrics` table with columns: `id`, `mrr` (numeric), `active_users` (int), `burn_rate` (numeric), `runway_months` (int), `strategic_hypothesis` (text), `updated_at`, `created_at`
-- RLS: admin-only SELECT, INSERT, UPDATE (all using `has_role()`)
-- Trigger: auto-update `updated_at` using existing function
-- Seed: one row with defaults (0, 0, 0, 12, placeholder hypothesis text)
+### Files to Change
 
-## New Files
+**`src/pages/Features.tsx`** (hero logo, lines ~69-71):
+- Remove `scale-[1.8]` from the img tag
+- Use `object-cover` instead of `object-contain` so the image fills the container naturally
 
-### `src/hooks/useAdminAuth.ts`
+**`src/components/features/SentinelCapabilities.tsx`** (2 logo instances, lines 43 and 87):
+- Same fix: remove `scale-[1.8]`, switch to `object-cover`
 
-- Uses `supabase.auth.getSession()` to get current user ID
-- Queries `user_roles` table filtering by `user_id` and `role = 'admin'`
-- Returns `{ isAdmin: boolean, isLoading: boolean }`
-- Uses TanStack Query with `enabled: !!userId`
-- No redirect logic inside the hook (handled by the page component)
+### Before / After
 
-### `src/hooks/useFounderMetrics.ts`
-
-- `useFounderMetrics()` -- `useQuery` fetching the single row from `founder_metrics` (`.single()`)
-- `useUpdateMetrics()` -- `useMutation` accepting `{ mrr, active_users, burn_rate, runway_months }`
-- `useUpdateHypothesis()` -- `useMutation` accepting `{ strategic_hypothesis: string }`
-- Both mutations invalidate the `founder-metrics` query key on success
-- Toast notifications on success/error
-
-### `src/pages/admin/FounderDashboard.tsx`
-
-**Auth Guard:**
-- Calls `useAdminAuth()`
-- While loading: full-screen spinner (matches existing `gradient-hero` + `Loader2` pattern from Auth.tsx)
-- If not admin after loading: `useEffect` redirects to `/` via `useNavigate()`
-
-**Layout:**
-- `gradient-hero` background with `Header` component (same pattern as Account.tsx)
-- Page title: "Command Center" with `font-display`
-- `container` with `max-w-6xl`
-
-**Section 1 -- North Star Metrics:**
-- 4 cards in a `grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4` layout
-- Each card uses the existing `card-elevated` class pattern
-- Card details:
-
-| Metric | Icon | Format |
-|--------|------|--------|
-| MRR | `TrendingUp` | EUR {mrr} |
-| Active Users | `Users` | {active_users} |
-| Burn Rate | `AlertTriangle` | EUR {burn_rate}/mo |
-| Runway | `Clock` | {runway_months} months |
-
-- "Edit Metrics" button opens a Shadcn `Dialog` with 4 `Input` fields (type="number") and a Save button
-- Dialog submit calls `useUpdateMetrics` mutation
-
-**Section 2 -- Strategic Hypothesis:**
-- `Card` with `card-elevated` class
-- View mode: displays hypothesis text with a small "Edit" button (pencil icon)
-- Edit mode: `Textarea` replaces the text, with "Save" and "Cancel" buttons
-- Save calls `useUpdateHypothesis` mutation
-
-## Modified Files
-
-### `src/App.tsx`
-
-Add one route before the catch-all:
-
-```
-<Route path="/admin/dashboard" element={<FounderDashboard />} />
+```text
+Before: <img src={exosLogo} className="w-full h-full object-contain scale-[1.8]" />
+After:  <img src={exosLogo} className="w-full h-full object-cover" />
 ```
 
-## Security Model
+This ensures the logo fills its container by cropping edges rather than scaling and overflowing, which is more reliable across builds and browsers.
 
-- All data queries are gated by RLS (`has_role(auth.uid(), 'admin')`)
-- Even if someone navigates to `/admin/dashboard` without admin role, queries return empty/error
-- Frontend guard provides UX-level protection (redirect), but RLS is the real security layer
-- `has_role()` is `SECURITY DEFINER` to avoid recursive RLS on `user_roles`
-- No client-side role caching or localStorage
+## Scope
 
-## Patterns Reused from Existing Code
-
-- Auth check pattern from `Account.tsx` (onAuthStateChange + getSession)
-- `gradient-hero` + `Header` layout from Auth.tsx / Account.tsx
-- `card-elevated` styling class
-- `font-display` for headings
-- TanStack Query patterns from existing hooks (e.g., `useMarketInsights.ts`)
-- Lucide icons throughout
-
-## Not Included (Deferred)
-
-- Section 3: Recent Signups (needs profiles table)
-- Stripe MRR automation
-- PostHog deep links
-- Nav link to admin dashboard in Header (admin-only nav item can be added later)
+- 3 img tags across 2 files
+- No structural or layout changes
+- No new dependencies
 
