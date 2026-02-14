@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { authenticateRequest, requireAdmin } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -247,6 +248,23 @@ serve(async (req) => {
   }
 
   const startTime = Date.now();
+
+  // Authenticate request - admin only
+  const authResult = await authenticateRequest(req);
+  if ("error" in authResult) {
+    return new Response(
+      JSON.stringify({ error: authResult.error.message }),
+      { status: authResult.error.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const isAdmin = await requireAdmin(authResult.user.userId);
+  if (!isAdmin) {
+    return new Response(
+      JSON.stringify({ error: "Admin access required" }),
+      { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
 
   try {
     const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
