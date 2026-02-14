@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { LangSmithTracer } from "../_shared/langsmith.ts";
+import { authenticateRequest } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -156,6 +157,15 @@ ${contextParts.length > 0 ? `<grounding-context>\n${contextParts.join('\n\n')}\n
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Authenticate request
+  const authResult = await authenticateRequest(req);
+  if ("error" in authResult) {
+    return new Response(
+      JSON.stringify({ error: authResult.error.message }),
+      { status: authResult.error.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 
   // Declare tracer and parentRunId at function scope for error handler

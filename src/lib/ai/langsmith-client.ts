@@ -10,10 +10,13 @@
 // Configuration
 // ============================================================================
 
-const TRACING_ENABLED = import.meta.env.VITE_LANGCHAIN_TRACING_V2 === "true";
-const API_KEY = import.meta.env.VITE_LANGCHAIN_API_KEY || "";
+// Client-side tracing is DISABLED for security.
+// LangSmith API keys must only be used server-side (edge functions).
+// Server-side tracing is handled in supabase/functions/_shared/langsmith.ts
+const TRACING_ENABLED = false;
+const API_KEY = "";
 const PROJECT = import.meta.env.VITE_LANGCHAIN_PROJECT || "default";
-const ENDPOINT = import.meta.env.VITE_LANGCHAIN_ENDPOINT || "https://api.smith.langchain.com";
+const ENDPOINT = "";
 
 // ============================================================================
 // Type Definitions
