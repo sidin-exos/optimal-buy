@@ -40,6 +40,7 @@ import { BusinessContextField } from "./BusinessContextField";
 import { ModelSelector, DEFAULT_MODEL, type AIModel } from "./ModelSelector";
 import { DraftedParametersCard } from "./DraftedParametersCard";
 import { MarketInsightsBanner } from "@/components/insights/MarketInsightsBanner";
+import ScenarioTutorial from "./ScenarioTutorial";
 import {
   Scenario,
   ScenarioRequiredField,
@@ -446,6 +447,12 @@ const GenericScenarioWizard = ({ scenario }: GenericScenarioWizardProps) => {
             exit={{ opacity: 0, x: -20 }}
             className="space-y-6"
           >
+            <ScenarioTutorial
+              scenario={scenario}
+              industryName={industryContext?.name ?? null}
+              categoryName={categoryContext?.name ?? null}
+            />
+
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-display text-lg font-semibold mb-1">
