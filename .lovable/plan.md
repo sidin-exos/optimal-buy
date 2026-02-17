@@ -1,44 +1,40 @@
 
 
-# Update Pricing Page Content
+## Spend Analysis & Categorization Scenario
 
-## Summary
+### Spec Issues Found (Auto-corrected)
 
-Four text updates to the pricing tiers on `src/pages/Pricing.tsx`.
+1. **Category mismatch**: Spec says `"analytics"` -- not a valid value. Will use `"analysis"` (matches existing cost/TCO scenarios).
+2. **Missing required fields**: Spec omits `icon`, `status`, `industryContext`, and `mainFocus` -- all mandatory per existing patterns.
+3. **Missing dashboard mapping**: No dashboards specified. Will assign relevant ones.
 
-## Changes (single file: `src/pages/Pricing.tsx`)
+### Changes
 
-### 1. Procurement Professionals tier -- add two features
+**1. `src/lib/scenarios.ts`**
+- Add `PieChart` icon (already imported, fits spend categorization)
+- Add scenario object with:
+  - `category: "analysis"`, `status: "available"`
+  - `industryContext` field + `MAIN_FOCUS_FIELD` (standard pattern)
+  - `rawSpendData` (textarea), `timeframe` (text), `businessGoal` (text, optional) per spec
+- No `strategySelector` needed (data analysis, not strategic tradeoff)
 
-Add these items to the features array:
-- "On demand dashboards and market intelligence"
-- "Consultation support"
+**2. `src/lib/dashboard-mappings.ts`**
+- Add mapping: `"spend-analysis-categorization": ["cost-waterfall", "kraljic-quadrant", "supplier-scorecard", "data-quality"]`
+- Rationale: Cost waterfall for spend breakdown, Kraljic for category positioning, Supplier scorecard for vendor concentration, Data quality for confidence scoring
 
-### 2. Enterprise tier -- update two features
+### Technical Details
 
-- Replace "Custom AI model training" with "Custom AI models configuration"
-- Replace "On-premise deployment options" with "EXOS engine placed on your local server"
-- Replace "SSO & advanced security" with "Full InfoSec access to outgoing API requests"
+```text
+Scenario Object:
+  id: "spend-analysis-categorization"
+  icon: PieChart (already imported)
+  category: "analysis"
+  status: "available"
+  strategySelector: none
+  fields: industryContext, mainFocus, rawSpendData, timeframe, businessGoal
+  outputs: 4 items per spec
+  dashboards: cost-waterfall, kraljic-quadrant, supplier-scorecard, data-quality
+```
 
-### Final feature lists after changes
-
-**Procurement Professionals:**
-1. Everything in SMB, plus:
-2. Unlimited simulations and scenarios
-3. Full dashboard access
-4. On demand dashboards and market intelligence
-5. Validated secure data protocols
-6. Multi-user collaboration
-7. Advanced reporting and exports
-8. Consultation support
-9. Priority support
-
-**Enterprise:**
-1. Everything in Professional, plus:
-2. Custom data integrations
-3. Full InfoSec access to outgoing API requests
-4. Dedicated success manager
-5. Custom AI models configuration
-6. EXOS engine placed on your local server
-7. SLA guarantees
+No new components, edge functions, or database changes needed -- the existing `GenericScenarioWizard` handles everything dynamically.
 
