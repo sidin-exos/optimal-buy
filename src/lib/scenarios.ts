@@ -897,6 +897,29 @@ export const scenarios: Scenario[] = [
       "Monitoring Dashboard: Key risk indicators and trigger points",
     ],
   },
+  // Spend Analysis & Categorization
+  {
+    id: "spend-analysis-categorization",
+    title: "Spend Analysis & Categorization",
+    description:
+      "Turn messy accounting exports into a strategic procurement dashboard. Paste your top expenses, and AI will map them to standard procurement categories, identify 'tail spend', and spot consolidation opportunities.",
+    icon: PieChart,
+    status: "available",
+    category: "analysis",
+    requiredFields: [
+      { id: "industryContext", label: "Industry & Business Context", description: "Describe your industry, business model, and procurement maturity level", type: "textarea", required: true, placeholder: "E.g., 'Mid-size SaaS company, ~200 employees. No dedicated procurement function. Most purchases handled by department heads with P-cards...'" },
+      MAIN_FOCUS_FIELD,
+      { id: "rawSpendData", label: "Raw Spend Data (Paste from Excel/CSV)", description: "Paste your top 20-100 expenses. Include Supplier Name, Description/Memo, and Amount. Raw text is perfectly fine.", type: "textarea", required: true, placeholder: "Supplier | Description | Amount\nAWS | Cloud hosting | 45000\nHubSpot | Marketing CRM | 18000\nOffice Depot | Supplies | 3200\n..." },
+      { id: "timeframe", label: "Timeframe", description: "What period does this data cover? (e.g., Q3 2025, Last 12 Months)", type: "text", required: true },
+      { id: "businessGoal", label: "Strategic Goal", description: "e.g., 'Need to cut OPEX by 10%', 'Looking for vendor consolidation', 'Preparing for an audit'", type: "text", required: false },
+    ],
+    outputs: [
+      "Spend Taxonomy & Categorization Breakdown",
+      "Tail Spend Identification (High volume, low value)",
+      "Vendor Consolidation Opportunities",
+      "Quick Wins & Strategic Next Steps",
+    ],
+  },
 ];
 
 // Get scenario by ID
