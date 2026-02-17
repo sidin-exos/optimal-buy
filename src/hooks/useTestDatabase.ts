@@ -32,6 +32,7 @@ export interface TestReport {
   token_usage: Record<string, unknown> | null;
   success: boolean;
   error_message: string | null;
+  shadow_log: Record<string, unknown> | null;
   created_at: string;
 }
 

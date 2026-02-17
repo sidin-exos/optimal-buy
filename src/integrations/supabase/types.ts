@@ -306,6 +306,7 @@ export type Database = {
           processing_time_ms: number | null
           prompt_id: string
           raw_response: string
+          shadow_log: Json | null
           success: boolean
           token_usage: Json | null
           validation_result: Json | null
@@ -319,6 +320,7 @@ export type Database = {
           processing_time_ms?: number | null
           prompt_id: string
           raw_response: string
+          shadow_log?: Json | null
           success?: boolean
           token_usage?: Json | null
           validation_result?: Json | null
@@ -332,6 +334,7 @@ export type Database = {
           processing_time_ms?: number | null
           prompt_id?: string
           raw_response?: string
+          shadow_log?: Json | null
           success?: boolean
           token_usage?: Json | null
           validation_result?: Json | null

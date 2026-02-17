@@ -534,7 +534,7 @@ function selectRandomTrick(scenarioType: string): { trick: TrickDefinition; temp
 }
 
 interface GenerateRequest {
-  mode?: "draft" | "generate" | "full";
+  mode?: "draft" | "generate" | "full" | "messy";
   scenarioType: string;
   industry?: string;
   category?: string;
@@ -574,7 +574,7 @@ serve(async (req) => {
   try {
     const body = await parseBody(req);
 
-    const VALID_MODES = ["draft", "generate", "full"] as const;
+    const VALID_MODES = ["draft", "generate", "full", "messy"] as const;
     const mode = requireStringEnum(body.mode, "mode", VALID_MODES, { optional: true }) || "full";
     const scenarioType = requireString(body.scenarioType, "scenarioType", { minLength: 1, maxLength: 200 })!;
     const industry = requireString(body.industry, "industry", { optional: true, maxLength: 200 });
@@ -614,6 +614,19 @@ serve(async (req) => {
       );
       return new Response(
         JSON.stringify(generateResult),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // === MESSY MODE: Generate chaotic, high-friction inputs ===
+    if (mode === "messy") {
+      const messyResult = await handleMessyMode(
+        LOVABLE_API_KEY,
+        scenarioType,
+        temperature > 0 ? Math.max(temperature, 0.9) : 0.9
+      );
+      return new Response(
+        JSON.stringify(messyResult),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -954,6 +967,72 @@ function scoreTrickEmbedding(
     embedded: hasTrickIndicators,
     subtletyScore,
     feedback
+  };
+}
+// === MESSY MODE HANDLER ===
+const HIGH_FRICTION_SCENARIOS = [
+  "tco-analysis", "software-licensing", "cost-breakdown",
+  "make-vs-buy", "supplier-review", "negotiation-prep"
+];
+
+async function handleMessyMode(
+  apiKey: string,
+  scenarioType: string,
+  temperature: number
+): Promise<{ success: boolean; data?: Record<string, string>; metadata?: object; error?: string }> {
+  // Default to a random high-friction scenario if the provided one isn't in the list
+  const targetScenario = HIGH_FRICTION_SCENARIOS.includes(scenarioType)
+    ? scenarioType
+    : HIGH_FRICTION_SCENARIOS[Math.floor(Math.random() * HIGH_FRICTION_SCENARIOS.length)];
+
+  const fields = SCENARIO_SCHEMAS[targetScenario] || ["industryContext"];
+
+  console.log(`[TestDataGen] Messy mode - Target: ${targetScenario}, Fields: ${fields.length}`);
+
+  const system = `You are a busy, disorganized procurement manager. Generate realistic, messy corporate data for the '${targetScenario}' scenario. Do NOT provide clean, isolated numbers or perfectly formatted text. Instead, generate copy-pasted email threads from suppliers, fragmented meeting notes, or raw CSV strings where pricing, terms, and context are all mixed together in unstructured text. Force this chaotic text into the required scenario schema fields, even if it means shoving a whole email paragraph into a 'currency' or 'number' field, or leaving some fields completely blank. The goal is to simulate maximum UX friction and trigger the shadow logging evaluation.
+
+OUTPUT FORMAT:
+Return ONLY a valid JSON object with the requested field names as keys. Values should be messy, realistic text — NOT clean data. Some fields may be empty strings or contain data that doesn't match the expected format at all.`;
+
+  const user = `Generate messy, chaotic procurement data for the "${targetScenario}" scenario.
+
+REQUIRED FIELDS (force messy data into these):
+${fields.map(f => `- ${f}`).join('\n')}
+
+Examples of messy data styles:
+- A "currency" field containing: "idk maybe around 50k? check the email from Sarah — she said between 45-55k EUR but that was before the Q3 adjustments"
+- A "number" field containing: "see attached spreadsheet row 47, col D — last time it was 12 but procurement said they're renegotiating"
+- A "text" field containing a full forwarded email thread with "FW: RE: RE: Updated pricing" 
+- Some fields left completely blank
+
+Return ONLY the JSON object.`;
+
+  const response = await callAI(apiKey, system, user, temperature);
+
+  if (!response.success) {
+    return { success: false, error: "Failed to generate messy test data" };
+  }
+
+  const data = parseGeneratedData(response.content, fields);
+
+  if (Object.keys(data).length === 0) {
+    return { success: false, error: "Failed to parse messy generated data" };
+  }
+
+  return {
+    success: true,
+    data,
+    metadata: {
+      industry: "mixed",
+      category: "mixed",
+      score: 0, // Messy data intentionally scores low
+      iterations: 1,
+      reasoning: `Messy mode: chaotic data generated for ${targetScenario} to stress-test shadow logging`,
+      mode: "messy",
+      targetScenario,
+      fieldsGenerated: Object.keys(data).length,
+      fieldsExpected: fields.length,
+    }
   };
 }
 
