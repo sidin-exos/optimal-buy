@@ -106,12 +106,41 @@ ${category.kpis.map((k, i) => `      <kpi index="${i + 1}">${escapeXML(k)}</kpi>
 </category-context>`;
 }
 
+// Shadow log injection and extraction helpers
+const SHADOW_LOG_INSTRUCTION = `
+
+INTERNAL EVALUATION (do NOT include in your visible response):
+After your analysis, output a JSON block fenced with \`\`\`shadow_log\`\`\` containing:
+{
+  "redundant_fields": ["...fields that added no analytical value"],
+  "missing_context": ["...context the user likely wanted to provide but couldn't"],
+  "friction_score": 1-10,
+  "input_recommendation": "one sentence recommendation for improving input UX",
+  "detected_input_format": "structured|semi-structured|raw_text|mixed"
+}
+This block will be stripped before the response reaches the user. It is for internal evaluation only.`;
+
+function extractShadowLog(content: string): { cleanContent: string; shadowLog: Record<string, unknown> | null } {
+  const regex = /```shadow_log\s*\n?([\s\S]*?)\n?\s*```/;
+  const match = content.match(regex);
+  if (!match) return { cleanContent: content, shadowLog: null };
+  try {
+    const parsed = JSON.parse(match[1].trim());
+    const cleanContent = content.replace(regex, '').trim();
+    return { cleanContent, shadowLog: parsed };
+  } catch (e) {
+    console.warn("[Sentinel] Failed to parse shadow_log JSON:", e);
+    return { cleanContent: content.replace(regex, '').trim(), shadowLog: null };
+  }
+}
+
 function buildServerGroundedPrompts(
   industry: IndustryRow | null,
   category: CategoryRow | null,
   scenarioType: string,
   scenarioData: Record<string, unknown>,
-  userInput: string
+  userInput: string,
+  injectShadowLog: boolean = false
 ): { systemPrompt: string; userPrompt: string } {
   // Build system prompt with injected context
   const contextParts: string[] = [];
@@ -131,7 +160,7 @@ IMPORTANT RULES:
 7. Flag uncertainty explicitly with confidence levels
 8. Err on cautious side for savings projections
 
-${contextParts.length > 0 ? `<grounding-context>\n${contextParts.join('\n\n')}\n</grounding-context>` : ''}`;
+${contextParts.length > 0 ? `<grounding-context>\n${contextParts.join('\n\n')}\n</grounding-context>` : ''}${injectShadowLog ? SHADOW_LOG_INSTRUCTION : ''}`;
 
   // Build lean user prompt with scenario data + anonymized input
   const scenarioFields = Object.entries(scenarioData)
@@ -252,12 +281,16 @@ serve(async (req) => {
       }, { parentRunId });
 
       try {
+        // Inject shadow log instruction for non-streaming test-logged requests
+        const shouldInjectShadowLog = enableTestLogging && !stream && !!scenarioType;
+
         const grounded = buildServerGroundedPrompts(
           industryResult.data as IndustryRow | null,
           categoryResult.data as CategoryRow | null,
           scenarioType || "general",
           scenarioData || {},
-          rawUserPrompt
+          rawUserPrompt,
+          shouldInjectShadowLog
         );
 
         systemPrompt = grounded.systemPrompt;
@@ -273,6 +306,10 @@ serve(async (req) => {
       // Legacy path: client sent full prompts (useQuickAnalysis, ModelConfigPanel, etc.)
       systemPrompt = body.systemPrompt;
       userPrompt = rawUserPrompt;
+      // Inject shadow log for legacy path too if conditions met
+      if (enableTestLogging && !stream && scenarioType) {
+        systemPrompt += SHADOW_LOG_INSTRUCTION;
+      }
     } else {
       // Fallback: no grounding, use a basic system prompt
       systemPrompt = "You are an expert procurement analyst. Provide clear, actionable recommendations.";
@@ -397,7 +434,13 @@ serve(async (req) => {
           }
 
           const googleData = await googleResponse.json();
-          const content = googleData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          const rawContent = googleData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+          // Extract and strip shadow_log from response
+          const { cleanContent: content, shadowLog } = extractShadowLog(rawContent);
+          if (shadowLog) {
+            console.log("[Sentinel] Shadow log extracted (Google):", JSON.stringify(shadowLog));
+          }
 
           const usage = googleData.usageMetadata ? {
             prompt_tokens: googleData.usageMetadata.promptTokenCount || 0,
@@ -405,7 +448,7 @@ serve(async (req) => {
             total_tokens: googleData.usageMetadata.totalTokenCount || 0,
           } : null;
 
-          // Log successful response
+          // Log successful response with shadow_log
           if (enableTestLogging && supabase && promptId) {
             try {
               await supabase.from("test_reports").insert({
@@ -414,14 +457,15 @@ serve(async (req) => {
                 raw_response: content,
                 processing_time_ms: processingTime,
                 token_usage: usage,
-                success: true
+                success: true,
+                shadow_log: shadowLog
               });
             } catch (reportError) {
               console.error("[Sentinel] Failed to log report:", reportError);
             }
           }
 
-          tracer.patchRun(googleAttemptId, { contentLength: content.length, usage, processingTimeMs: processingTime });
+          tracer.patchRun(googleAttemptId, { contentLength: content.length, usage, processingTimeMs: processingTime, hasShadowLog: !!shadowLog });
           tracer.patchRun(inferenceRunId, { success: true, contentLength: content.length, source: "google_ai_studio", processingTimeMs: processingTime });
           tracer.patchRun(parentRunId, { success: true, contentLength: content.length, source: "google_ai_studio", processingTimeMs: processingTime });
 
@@ -581,21 +625,28 @@ serve(async (req) => {
     }
 
     const data = await aiResponse.json();
-    const content = data.choices?.[0]?.message?.content || "";
+    const rawContent = data.choices?.[0]?.message?.content || "";
 
-    // Log successful response
+    // Extract and strip shadow_log from response
+    const { cleanContent: content, shadowLog } = extractShadowLog(rawContent);
+    if (shadowLog) {
+      console.log("[Sentinel] Shadow log extracted (Gateway):", JSON.stringify(shadowLog));
+    }
+
+    // Log successful response with shadow_log
     if (enableTestLogging && supabase && promptId) {
       try {
         await supabase.from("test_reports").insert({
           prompt_id: promptId, model, raw_response: content,
-          processing_time_ms: processingTime, token_usage: data.usage || null, success: true
+          processing_time_ms: processingTime, token_usage: data.usage || null, success: true,
+          shadow_log: shadowLog
         });
       } catch (reportError) {
         console.error("[Sentinel] Failed to log report:", reportError);
       }
     }
 
-    tracer.patchRun(inferenceRunId, { success: true, contentLength: content.length, usage: data.usage, source: "cloud", processingTimeMs: processingTime });
+    tracer.patchRun(inferenceRunId, { success: true, contentLength: content.length, usage: data.usage, source: "cloud", processingTimeMs: processingTime, hasShadowLog: !!shadowLog });
     tracer.patchRun(parentRunId, { success: true, contentLength: content.length, source: "cloud", processingTimeMs: processingTime });
 
     return new Response(

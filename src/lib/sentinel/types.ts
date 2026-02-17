@@ -190,3 +190,16 @@ export interface LocalModelResponse {
     processingTimeMs: number;
   };
 }
+
+// ============================================
+// 7. SHADOW LOGGING TYPES
+// ============================================
+
+export interface ShadowLog {
+  redundant_fields: string[];
+  missing_context: string[];
+  friction_score: number; // 1 (smooth) to 10 (painful)
+  input_recommendation: string;
+  scenario_type?: string;
+  detected_input_format?: 'structured' | 'semi-structured' | 'raw_text' | 'mixed';
+}
