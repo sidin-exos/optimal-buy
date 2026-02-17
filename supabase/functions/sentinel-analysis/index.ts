@@ -419,7 +419,8 @@ serve(async (req) => {
               });
             }
 
-            if (googleResponse.status === 429 || googleResponse.status >= 500) {
+            // Fallback to Lovable AI Gateway on rate limit, server errors, OR auth/key errors (400/401/403)
+            if (googleResponse.status === 429 || googleResponse.status >= 500 || googleResponse.status === 400 || googleResponse.status === 401 || googleResponse.status === 403) {
               console.warn(`[Sentinel] Google AI Studio ${googleResponse.status}, falling back to Lovable AI Gateway`);
               throw new Error(`Google AI Studio ${googleResponse.status}: fallback to gateway`);
             }
