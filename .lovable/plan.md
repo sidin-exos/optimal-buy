@@ -1,212 +1,223 @@
 
 
-## Field Requirement Reduction — Implementation Plan
+## Test Data Generator — Full Field Coverage + Buyer Personas
 
-### Summary
-Single file change: `src/lib/scenarios.ts`. Change `required: true` to `required: false` for ~124 fields across 24 scenarios. Three CEO-overridden fields remain mandatory per your corrections.
+### Scope
+Single file update: `supabase/functions/generate-test-data/index.ts`
 
-### CEO Overrides (fields that STAY `required: true`)
-1. **TCO Analysis** `annualMaintenance` (line 280) -- maintenance often exceeds purchase price
-2. **Software Licensing** `contractLength` (line 344) -- fundamental baseline for SaaS optimization
-3. **Savings Calculation** `contractTerm` (line 576) -- savings meaningless without temporal scope
+### Execution Order
 
-### Changes by Scenario (field ID -> `required: false`)
+1. Replace `SCENARIO_SCHEMAS` type from `Record<string, string[]>` to `Record<string, { required: string[]; optional: string[] }>`
+2. Fix ID mismatch: remove `negotiation-prep`, ensure `negotiation-preparation` has correct fields
+3. Add 5 missing scenarios with full field coverage
+4. Update all 18 existing scenarios with missing fields
+5. Add Buyer Personas system with random selection
+6. Update `handleGenerateMode`, `handleMessyMode`, full mode, and `buildGenerationPrompt` to use new schema structure and inject personas
+7. Deploy edge function
 
-**1. Make vs Buy** (lines 78-89) — 10 req -> 4 req
-- `recruitingCost` (line 81)
-- `managementTime` (line 82)
-- `officeItPerHead` (line 83)
-- `agencyOnboardingSpeed` (line 85)
-- `knowledgeRetentionRisk` (line 86)
-- `strategicImportance` (line 89)
+---
 
-**2. Cost Breakdown** (lines 102-116) — 8 req -> 5 req
-- `materialCost` (line 107)
-- `laborCost` (line 108)
-- `overheadCost` (line 109)
+### Change 1: SCENARIO_SCHEMAS Type Migration
 
-**3. Spend Analysis** (lines 128-133) — 4 req -> 3 req
-- `timeframe` (line 132)
+Replace the flat `string[]` structure with `{ required: string[]; optional: string[] }`:
 
-**4. Tail Spend** (lines 151-163) — 6 req -> 4 req
-- `catalogAvailable` (line 156)
-- `paymentTerms` (line 158)
-- `approvalRequired` (line 163)
+```typescript
+const SCENARIO_SCHEMAS: Record<string, { required: string[]; optional: string[] }> = {
+  "make-vs-buy": {
+    required: ["industryContext", "mainFocus", "internalSalary", "agencyFee"],
+    optional: ["recruitingCost", "managementTime", "officeItPerHead", "agencyOnboardingSpeed", 
+               "knowledgeRetentionRisk", "qualityBenchmark", "peakLoadCapacity", "strategicImportance"]
+  },
+  // ... all 29 scenarios
+};
+```
 
-**5. Supplier Review** (lines 176-188) — 8 req -> 5 req
-- `incidentCount` (line 181)
-- `communicationScore` (line 182)
-- `financialStability` (line 184)
-- `priceVsMarket` (line 186)
+Required/optional split mirrors `src/lib/scenarios.ts` exactly (including 3 CEO overrides).
 
-**6. Disruption Management** (lines 201-213) — 8 req -> 5 req
-- `altSuppliers` (line 206)
-- `altProducts` (line 207)
-- `switchingTime` (line 209)
+---
 
-**7. Risk Assessment** (lines 226-248) — 13 req -> 5 req
-- `marketVolatility` (line 232)
-- `regulatoryExposure` (line 233)
-- `geopoliticalRisk` (line 234)
-- `contractType` (line 237)
-- `liabilityProtection` (line 238)
-- `terminationRights` (line 239)
-- `currentChallenges` (line 242)
-- `supplierFinancialHealth` (line 243)
-- `recoveryTime` (line 248)
+### Change 2: Fix ID Mismatch
 
-**8. TCO Analysis** (lines 269-304) — 17 req -> 6 req (annualMaintenance stays required per CEO override)
-- `installationCost` (line 276)
-- `energyConsumption` (line 281)
-- `vendorLockInRisk` (line 286)
-- `proprietaryComponents` (line 287)
-- `alternativeSuppliers` (line 288)
-- `technologyObsolescence` (line 291)
-- `marketPriceTrend` (line 292)
-- `inflationAssumption` (line 295)
-- `interestRate` (line 297)
-- `residualValue` (line 299)
-- `downtimeRisk` (line 303)
-- `downtimeCostPerHour` (line 304)
+- **Remove** the `negotiation-prep` entry (line 133-136) with wrong fields (`annualSpend`, `contractEndDate`, `relationshipYears`, `alternativeCount`, `spendTrend`, `leverage`)
+- **Keep** `negotiation-preparation` entry (line 188-191) and expand it with all 17 fields from scenarios.ts
 
-**9. Software Licensing** (lines 326-359) — 18 req -> 7 req (contractLength stays required per CEO override)
-- `powerUsers` (line 333)
-- `regularUsers` (line 334)
-- `occasionalUsers` (line 335)
-- `implementationCost` (line 343)
-- `longTermDiscount` (line 345)
-- `annualEscalation` (line 346)
-- `terminationClause` (line 348)
-- `dataExportability` (line 350)
-- `integrationDependency` (line 351)
-- `switchingCostEstimate` (line 352)
-- `alternativeProducts` (line 353)
-- `vendorStability` (line 356)
+Also update `HIGH_FRICTION_SCENARIOS` (line 973-976) to use `negotiation-preparation` instead of `negotiation-prep`.
 
-**10. Risk Matrix** (lines 381-393) — 9 req -> 3 req
-- `legalStatus` (line 384)
-- `lawsuits` (line 385)
-- `financialHealth` (line 387)
-- `concentration` (line 388)
-- `sanctionsRisk` (line 390)
-- `cyberSecurity` (line 391)
+Also update `TRICK_LIBRARY` key `negotiation-prep` (line 323) to `negotiation-preparation` and update its `targetFields` references.
 
-**11. SOW Critic** (lines 408-420) — 7 req -> 3 req
-- `deliverables` (line 412)
-- `acceptanceCriteria` (line 413)
-- `timeline` (line 414)
-- `responsibilities` (line 415)
-- `changeProcess` (line 418)
+---
 
-**12. SLA Definition** (lines 433-444) — 8 req -> 5 req
-- `resolutionTime` (line 438)
-- `allowedDowntime` (line 439)
-- `escalationProcess` (line 442)
+### Change 3: Add 5 Missing Scenarios
 
-**13. Requirements Gathering** (lines 488-500) — 7 req -> 4 req
-- `budget` (line 492)
-- `userCount` (line 493)
-- `dataSecurityLevel` (line 495)
-- `urgency` (line 496)
+| Scenario | Required Fields | Optional Fields |
+|----------|----------------|-----------------|
+| `pre-flight-audit` | `industryContext`, `mainFocus`, `supplierWebsite`, `supplierName` | `plannedPurchase`, `estimatedValue`, `existingRelationship`, `researchFocus`, `urgency`, `redFlags` |
+| `category-risk-evaluator` | `industryContext`, `mainFocus`, `categoryName`, `tenderStage`, `contractValue` | `sowText`, `contractType`, `marketConcentration`, `marketTrends`, `priceVolatility`, `supplyRisk`, `regulatoryExposure`, `technologyChange`, `substitutability`, `pastIssues` |
+| `supplier-dependency-planner` | `industryContext`, `mainFocus`, `supplierName`, `serviceCategory`, `annualSpend`, `strategicImportance`, `diversificationGoal` | `categoryTotalSpend`, `spendConcentration`, `revenueShare`, `uniqueCapabilities`, `contractTerms`, `terminationPenalty`, `dataPortability`, `integrationDepth`, `knowledgeDependency`, `alternativeSuppliers`, `switchingTimeEstimate`, `switchingCostEstimate`, `timeHorizon` |
+| `specification-optimizer` | `industryContext`, `mainFocus`, `specificationText`, `specificationCategory`, `safetyRequirements` | `estimatedValue`, `specSource`, `lastReviewed`, `competitiveMarket`, `performanceMargins`, `certificationRequirements`, `tolerances` |
+| `black-swan-scenario` | `industryContext`, `mainFocus`, `assessmentScope`, `scopeDetails`, `annualExposure`, `scenarioTypes` | `businessImpact`, `singleSourceItems`, `geographicConcentration`, `tierVisibility`, `inventoryBuffer`, `recentNearMisses`, `alternativesReady`, `responsePlaybook`, `financialReserve`, `insuranceCoverage`, `acceptableDowntime`, `investmentWillingness` |
 
-**14. Volume Consolidation** (lines 515-527) — 7 req -> 3 req
-- `skuOverlap` (line 519)
-- `unitOfMeasure` (line 520)
-- `paymentTerms` (line 522)
-- `orderFrequency` (line 523)
-- `reliabilityIndex` (line 524)
+---
 
-**15. Capex vs Opex** (lines 540-552) — 8 req -> 5 req
-- `maintenanceCost` (line 546)
-- `residualValue` (line 547)
-- `wacc` (line 549)
+### Change 4: Update Existing Scenarios with Missing Fields
 
-**16. Savings Calculation** (lines 565-577) — 7 req -> 6 req (contractTerm stays required per CEO override)
-- `inflationIndex` (line 571)
+Complete field list for all 18 scenarios that had gaps (showing what gets added):
 
-**17. SaaS Optimization** (lines 590-602) — 9 req -> 5 req
-- `lastLoginDate` (line 595)
-- `featureUsage` (line 596)
-- `noticePeriod` (line 598)
-- `autoRenewal` (line 599)
+| Scenario | Fields Added |
+|----------|-------------|
+| `cost-breakdown` | `logisticsCost`, `toolingCost`, `profitMargin`, `commodityIndex`, `laborRateReference`, `currencyExposure` (all optional) |
+| `tail-spend-sourcing` | `quotesCount`, `warranty`, `deliveryCost`, `returnRisk`, `alternativesExist` (all optional) |
+| `disruption-management` | `inTransitStatus`, `competitorResponse` (optional) |
+| `risk-assessment` | `commodityDependency`, `contractType`, `liabilityProtection`, `terminationRights`, `priceAdjustmentMechanism`, `currentChallenges`, `supplyChainVisibility`, `recentIncidents` (all optional) |
+| `tco-analysis` | `integrationCost`, `consumablesCost`, `laborCost`, `insuranceCost`, `proprietaryComponents`, `alternativeSuppliers`, `dataPortability`, `technologyObsolescence`, `marketPriceTrend`, `regulatoryChanges`, `inflationAssumption`, `currencyExposure`, `interestRate`, `decommissioningCost`, `dataMigrationCost`, `downtimeRisk`, `downtimeCostPerHour` (all optional) |
+| `software-licensing` | `usageBasedRate`, `implementationCost`, `longTermDiscount`, `annualEscalation`, `paymentTerms`, `terminationClause`, `dataExportability`, `integrationDependency`, `switchingCostEstimate`, `alternativeProducts`, `proprietaryFeatures`, `vendorStability`, `complianceRequirements`, `currentSolution`, `currentAnnualCost` (all optional) |
+| `risk-matrix` | `environmentalRisk`, `sanctionsRisk`, `insurance`, `siteAudits` (optional) |
+| `sow-critic` | `clientResources`, `exclusions`, `changeProcess`, `penalties`, `warrantyPeriod` (optional) |
+| `sla-definition` | `contactMethods`, `reportingFrequency`, `qualityBonuses` (optional) |
+| `rfp-generator` | `mainFocus` (optional -- already optional in scenarios.ts) |
+| `requirements-gathering` | `itLandscape`, `niceToHaveFeatures`, `scalability`, `languageSupport` (optional) |
+| `negotiation-preparation` | Full rewrite with all 17 fields: required = `industryContext`, `mainFocus`, `negotiationSubject`, `currentSpend`, `supplierName`, `batna`, `negotiationObjectives`; optional = `relationshipHistory`, `buyingPower`, `marketAlternatives`, `switchingCost`, `supplierDependency`, `supplierBatna`, `mustHaves`, `niceToHaves`, `knownConstraints`, `timeline` |
+| `procurement-project-planning` | `resourceConstraint`, `stakeholders`, `riskFactors`, `successCriteria`, `strategicAlignment`, `dependencies` (optional) |
+| `saas-optimization` | `ssoIntegration`, `duplicateApps`, `supportTier` (optional) |
+| `capex-vs-opex` | `propertyTax`, `partsInflation`, `energyCost`, `trainingCost` (optional) |
+| `savings-calculation` | `fxRate`, `qualityCost`, `earlyPaymentDiscount`, `storageCost`, `switchingCosts` (optional) |
+| `category-strategy` | `innovationNeeds`, `contractStatus`, `stakeholders`, `historicalSavings`, `benchmarkData` (optional) |
+| `volume-consolidation` | `volumeGrowthForecast`, `currentPenalties`, `taxRate` (optional) |
 
-**18. Category Strategy** (lines 640-655) — 10 req -> 5 req
-- `supplierCount` (line 645)
-- `marketStructure` (line 646)
-- `supplyRisk` (line 647)
-- `businessImpact` (line 648)
-- `currentStrategy` (line 649)
-- `contractStatus` (line 652)
+Note: `spend-analysis-categorization`, `forecasting-budgeting`, `market-snapshot`, `contract-template`, `make-vs-buy`, `supplier-review` are already complete -- no changes needed.
 
-**19. Negotiation Preparation** (lines 676-693) — 12 req -> 7 req
-- `relationshipHistory` (line 682)
-- `buyingPower` (line 683)
-- `marketAlternatives` (line 684)
-- `switchingCost` (line 685)
-- `mustHaves` (line 690)
-- `timeline` (line 693)
+---
 
-**20. Procurement Project Planning** (lines 715-730) — 10 req -> 5 req
-- `keyInputs` (line 721)
-- `expectedOutputs` (line 722)
-- `budgetConstraint` (line 723)
-- `timelineConstraint` (line 724)
-- `resourceConstraint` (line 725)
-- `successCriteria` (line 728)
+### Change 5: Buyer Personas
 
-**21. Pre-flight Audit** (lines 744-754) — 7 req -> 4 req
-- `plannedPurchase` (line 749)
-- `existingRelationship` (line 751)
-- `researchFocus` (line 752)
+Add persona definitions and selection logic:
 
-**22. Category Risk Evaluator** (lines 773-791) — 11 req -> 5 req
-- `contractType` (line 780)
-- `marketConcentration` (line 783)
-- `marketTrends` (line 784)
-- `priceVolatility` (line 785)
-- `supplyRisk` (line 786)
-- `regulatoryExposure` (line 788)
-- `substitutability` (line 790)
+```typescript
+const BUYER_PERSONAS = [
+  {
+    id: "rushed-junior",
+    name: "The Rushed Junior Buyer",
+    description: "A junior procurement specialist who is short on time. Provides minimal, vague context. Uses informal language, abbreviations, and often leaves optional fields blank.",
+    optionalFillRate: "30-40%"
+  },
+  {
+    id: "methodical-manager",
+    name: "The Methodical Category Manager",
+    description: "An experienced category manager. Provides highly detailed, structured, and strategic context. Fills out almost all optional fields with precise industry terminology.",
+    optionalFillRate: "85-95%"
+  },
+  {
+    id: "cfo-finance",
+    name: "The CFO / Finance Leader",
+    description: "A senior finance executive focused purely on numbers, risk, and ROI. Provides very short text context but is extremely precise with financial figures (currencies, percentages). Often ignores technical or operational optional fields.",
+    optionalFillRate: "40-60% (financial fields prioritized)"
+  },
+  {
+    id: "frustrated-stakeholder",
+    name: "The Frustrated Stakeholder (Business Unit)",
+    description: "A non-procurement user (e.g., Marketing or IT Director) forced to use the system. Complains in the text fields, provides messy narrative data instead of structured facts, and misunderstands procurement terminology.",
+    optionalFillRate: "50-70% (filled but often with wrong format)"
+  }
+];
 
-**23. Supplier Dependency Planner** (lines 813-837) — 15 req -> 7 req
-- `categoryTotalSpend` (line 819)
-- `spendConcentration` (line 821)
-- `revenueShare` (line 822)
-- `uniqueCapabilities` (line 824)
-- `contractTerms` (line 826)
-- `dataPortability` (line 828)
-- `integrationDepth` (line 829)
-- `knowledgeDependency` (line 830)
-- `alternativeSuppliers` (line 832)
-- `switchingTimeEstimate` (line 833)
+function selectPersona(requestedPersona?: string) {
+  if (requestedPersona) {
+    const found = BUYER_PERSONAS.find(p => p.id === requestedPersona);
+    if (found) return found;
+  }
+  return BUYER_PERSONAS[Math.floor(Math.random() * BUYER_PERSONAS.length)];
+}
+```
 
-**24. Specification Optimizer** (lines 860-872) — 8 req -> 5 req
-- `estimatedValue` (line 865)
-- `specSource` (line 866)
-- `competitiveMarket` (line 868)
+---
 
-**25. Black Swan Scenario** (lines 893-915) — 12 req -> 6 req
-- `businessImpact` (line 899)
-- `singleSourceItems` (line 901)
-- `geographicConcentration` (line 902)
-- `tierVisibility` (line 903)
-- `inventoryBuffer` (line 904)
-- `alternativesReady` (line 909)
-- `responsePlaybook` (line 910)
-- `acceptableDowntime` (line 914)
+### Change 6: Update Request Parsing
 
-**26. Market Snapshot** (lines 939-949) — 3 req -> 2 req
-- `timeframe` (line 949)
+Add `persona` to the request body parsing (optional string field):
 
-**No changes to:** Predictive Budgeting (already lean), RFP Generator (already lean), Contract Template Generator (already well-structured)
+```typescript
+const persona = requireString(body.persona, "persona", { optional: true, maxLength: 100 });
+```
 
-### Impact
-- Total required fields: ~255 -> ~131 (49% reduction)
-- Avg required per scenario: ~8.8 -> ~4.5
-- Scenarios with 10+ required: 10 -> 0
-- No DB migrations, no structural changes
-- `DataRequirementsAlert` and `GenericScenarioWizard` already handle this correctly
+Pass it into `handleGenerateMode`, `handleMessyMode`, and full mode.
 
-### Risk Mitigation
-Shadow logging pipeline (just deployed) monitors `missing_context` and `friction_score` to validate these changes with real data.
+---
+
+### Change 7: Update Prompt Injection
+
+**`handleGenerateMode`** system prompt addition:
+
+```
+BUYER PERSONA:
+You are generating test data from the perspective of this user persona: "${selectedPersona.name}"
+${selectedPersona.description}
+
+Adjust your output accordingly:
+- Tone and verbosity of text fields should match this persona
+- Optional field fill rate should be approximately ${selectedPersona.optionalFillRate}
+
+FIELD REQUIREMENTS:
+REQUIRED FIELDS (MUST always be filled):
+${schema.required.map(f => `- ${f}`).join('\n')}
+
+OPTIONAL FIELDS (fill according to persona behavior):
+${schema.optional.map(f => `- ${f}`).join('\n')}
+```
+
+**`handleMessyMode`** -- always uses "frustrated-stakeholder" persona (natural fit for chaotic data), but can be overridden.
+
+**Full mode** (`buildGenerationPrompt`) -- persona injected into the system prompt, field list uses `[...schema.required, ...schema.optional]`.
+
+---
+
+### Change 8: Update All Consumers of SCENARIO_SCHEMAS
+
+4 locations need updating:
+
+| Location | Current | New |
+|----------|---------|-----|
+| `handleGenerateMode` (line 817) | `SCENARIO_SCHEMAS[scenarioType] \|\| ["industryContext"]` | `SCENARIO_SCHEMAS[scenarioType] \|\| { required: ["industryContext"], optional: [] }` then `const fields = [...schema.required, ...schema.optional]` |
+| `handleMessyMode` (line 988) | Same pattern | Same fix, plus pass required/optional distinction to prompt |
+| Full mode handler (line 635) | Same pattern | Same fix |
+| `buildGenerationPrompt` (line 1080) | Takes `fields: string[]` | Takes `schema: { required: string[]; optional: string[] }` and distinguishes in prompt |
+
+**`parseGeneratedData`** (line 1205) continues to accept `string[]` -- callers pass `[...schema.required, ...schema.optional]`.
+
+---
+
+### Change 9: Metadata Enhancement
+
+Include persona info in response metadata for all modes:
+
+```typescript
+metadata: {
+  // ... existing fields
+  persona: selectedPersona.id,
+  personaName: selectedPersona.name,
+  requiredFieldCount: schema.required.length,
+  optionalFieldCount: schema.optional.length,
+}
+```
+
+---
+
+### Impact Summary
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Scenarios in SCENARIO_SCHEMAS | 24 (1 with wrong ID) | 29 (all correct) |
+| Total fields covered | ~200 | ~350 |
+| Required/optional distinction | None | Full split for all 29 |
+| Buyer personas | None | 4 personas with behavioral profiles |
+| Modes supporting personas | 0 | 3 (generate, messy, full) |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `supabase/functions/generate-test-data/index.ts` | All changes above |
+
+### Deployment
+
+Single edge function deploy: `generate-test-data`
 
