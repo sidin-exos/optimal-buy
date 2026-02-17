@@ -1,169 +1,113 @@
 
 
-## New Scenario: Contract Template Generator
+## Upgrade: Dashboard Section to Interactive, CFO-Oriented Guide
 
 ### Summary
 
-Add a new "Contract Template Generator" scenario that fits into the existing GenericScenarioWizard and Sentinel pipeline. No new components, no new edge functions. The tier system influences prompt depth via a simple select field. Post-generation refinement uses the existing EXOS Guide chat.
+Transform the flat, reference-only Dashboards page into an interactive decision-support tool. Each dashboard gets a rich "context card" displayed above it, explaining what metrics it tracks, when a CFO should use it, what questions it answers, and which EXOS scenarios generate it. The tab selector gets visual improvements with scenario count badges. A new "Guide Me" intro section helps CFOs navigate by business question rather than dashboard name.
 
-### Design Decisions
+### What Changes
 
-**Reuse Sentinel pipeline**: This scenario flows through the standard sentinel-analysis edge function like RFP Generator and 20+ other scenarios. The AI behavior (rolling wave structure, anti-hallucination, country-specific clauses) is driven entirely by the system prompt, not by new code.
+**1. Enrich `dashboardConfigs` with CFO-oriented metadata (`src/lib/dashboard-mappings.ts`)**
 
-**Tiers as prompt depth lever**: The 3 tiers ("Quick Draft", "Standard", "Thorough") are a select field. The value is passed to the AI as part of scenarioData, and the system prompt interprets it to control output depth:
-- Quick: High-level clause structure, minimal commentary (~3 sections)
-- Standard: Full clause drafting with explanations (~5-6 sections)  
-- Thorough: Detailed clauses + risk flags + alternative language + country-specific annotations (~7+ sections)
-
-**EU-only (27 countries)**: Country select restricted to EU member states. The AI prompt enforces country-specific legal conventions.
-
-**Anti-hallucination**: Handled via existing Sentinel pipeline settings (temperature 0.2) plus scenario-specific prompt instructions: no fabricated legal citations, mandatory `[REVIEW WITH LEGAL COUNSEL]` flags on uncertain clauses, prominent disclaimer in outputs.
-
-**No new edge function**: Standard Sentinel pipeline handles everything. The scenario's intelligence comes from the prompt template built server-side.
-
-### Changes: 4 Files Modified
-
-**1. `src/lib/scenarios.ts` -- Add scenario definition**
-
-Add `ScrollText` to lucide imports. Add new scenario object before the closing bracket:
+Add three new fields to the `DashboardConfig` interface and populate them for all 14 dashboards:
 
 ```text
-id: "contract-template"
-title: "Contract Template Generator"
-description: "Generate country-specific contract templates for EU procurement.
-  Select your time investment tier and EXOS produces a structured template
-  with clause-by-clause guidance. Not legal advice — a professional starting point."
-icon: ScrollText
-category: "documentation"
-status: "available"
-strategySelector: undefined (no strategy selector)
-
-Fields:
-  - industryContext (textarea, required: false) -- auto-injected
-  - mainFocus (shared MAIN_FOCUS_FIELD)
-  - country (select, required: true)
-    Label: "Applicable Country (EU)"
-    Options: Austria, Belgium, Bulgaria, Croatia, Cyprus, Czech Republic,
-      Denmark, Estonia, Finland, France, Germany, Greece, Hungary, Ireland,
-      Italy, Latvia, Lithuania, Luxembourg, Malta, Netherlands, Poland,
-      Portugal, Romania, Slovakia, Slovenia, Spain, Sweden
-  - timeTier (select, required: true)
-    Label: "Time Investment / Detail Level"
-    Description: "How much detail do you need? Quick = high-level structure
-      (~15 min review). Standard = full clauses with guidance (~30-45 min).
-      Thorough = detailed clauses + risk flags + alternative wording (~1h+)."
-    Options:
-      "Quick Draft (3 feedback sections, ~15 min review)"
-      "Standard (5-6 feedback sections, ~30-45 min review)"
-      "Thorough (7+ feedback sections, ~1 hour+ review)"
-  - contractBrief (textarea, required: true)
-    Label: "Contract Brief"
-    Description: "Describe the contract you need. Include parties, subject,
-      approximate value, duration, and any special terms. Paste raw notes
-      or an email — EXOS will extract structure automatically."
-    Placeholder: realistic example
-  - contractType (select, required: true)
-    Label: "Contract Type"
-    Options:
-      "Service Agreement"
-      "Supply / Purchase Agreement"
-      "Framework Agreement"
-      "Non-Disclosure Agreement (NDA)"
-      "Consulting / Professional Services"
-      "Maintenance & Support Agreement"
-  - contractValue (text, required: false)
-    Label: "Approximate Contract Value"
-    Description: "Optional. Helps calibrate clause complexity and risk provisions."
-  - specialRequirements (textarea, required: false)
-    Label: "Special Requirements or Constraints"
-    Description: "E.g., GDPR data processing clauses, sustainability provisions,
-      specific payment milestones, IP ownership terms."
-
-Outputs:
-  - "Legal Disclaimer & Scope Statement"
-  - "Contract Structure Overview (Clause Map)"
-  - "Drafted Contract Template (Country-Specific)"
-  - "Clause-by-Clause Guidance & Risk Flags [REVIEW WITH LEGAL COUNSEL]"
-  - "Recommended Next Steps & Legal Review Checklist"
+interface DashboardConfig {
+  id: DashboardType;
+  name: string;
+  description: string;       // existing short description
+  icon: string;
+  // NEW fields:
+  keyMetrics: string[];       // 3-5 bullet metrics (e.g., "Weighted Score per Option", "Cost Delta %")
+  whenToUse: string;          // 1-2 sentence CFO guidance (e.g., "Use when comparing 3+ vendor options on cost, quality, and strategic fit")
+  questionsAnswered: string[];// 2-3 business questions (e.g., "Which supplier gives best value for money?")
+}
 ```
 
-**2. `src/lib/dashboard-mappings.ts` -- Add mapping**
+Example for Decision Matrix:
+```text
+keyMetrics: ["Weighted score per option", "Criteria weight distribution", "Score gap between top options"]
+whenToUse: "Use when you need to compare multiple options across weighted criteria — ideal for make-vs-buy, vendor selection, or technology choices."
+questionsAnswered: ["Which option scores highest across all factors?", "How sensitive is the result to weight changes?", "Are there clear winners or is it a close call?"]
+```
+
+**2. Create `DashboardContextCard` component (`src/components/reports/DashboardContextCard.tsx`)**
+
+A new component rendered above each dashboard visualization. Layout:
 
 ```text
-"contract-template": ["action-checklist", "timeline-roadmap", "data-quality"]
++----------------------------------------------------------+
+| [Icon]  Dashboard Name                    [N scenarios]   |
+|                                                           |
+| "When to use" guidance text (1-2 sentences)               |
+|                                                           |
+| Key Metrics            | Questions This Answers           |
+| - Weighted Score       | - Which option scores highest?   |
+| - Cost Delta %         | - How sensitive is the result?   |
+| - Criteria Coverage    | - Are there clear winners?       |
+|                                                           |
+| Available for Scenarios:                                  |
+| [Make vs Buy] [TCO Analysis] [Cost Breakdown]             |
++----------------------------------------------------------+
 ```
 
-- Action checklist: legal review tasks and next steps
-- Timeline roadmap: contract lifecycle milestones
-- Data quality: completeness of input vs. generated clauses
+- Scenario names rendered as clickable badges that link to `/scenarios` (or could deep-link in future)
+- Collapsible by default on mobile, expanded on desktop
+- Uses existing card styling (card-elevated, muted backgrounds)
 
-**3. `src/lib/test-data-factory.ts` -- Add generator**
+**3. Add "Guide Me" intro section to Reports page (`src/pages/Reports.tsx`)**
 
-New generator producing:
-- Random EU country
-- Random tier selection
-- Realistic contract brief (service agreement for IT support, supply agreement for packaging materials, etc.)
-- Random contract type
-- Optional contract value
-- Optional special requirements
-
-**4. `supabase/functions/generate-test-data/index.ts` -- Add field list**
+Replace the current minimal hero with a richer intro that includes a "What are you trying to decide?" quick-filter. This is a set of 4-5 clickable category cards:
 
 ```text
-"contract-template": [
-  "industryContext", "mainFocus", "country", "timeTier",
-  "contractBrief", "contractType", "contractValue", "specialRequirements"
-]
+"Compare Options"    -> highlights Decision Matrix, Scenario Comparison, TCO Comparison
+"Understand Costs"   -> highlights Cost Breakdown, TCO Comparison, Sensitivity Analysis
+"Manage Risk"        -> highlights Risk Matrix, Supplier Scorecard, SOW Analysis
+"Plan & Execute"     -> highlights Timeline Roadmap, Action Checklist, Negotiation Prep
+"Assess Data Quality"-> highlights Data Quality, Kraljic Matrix
 ```
 
-### AI Behavior (Prompt-Driven, No Code Changes)
+Clicking a category scrolls to and highlights the relevant dashboard tabs. This gives CFOs an entry point by business question rather than requiring them to know dashboard names.
 
-The Sentinel pipeline's server-side prompt builder will receive the scenario data and construct the system prompt. The key behavioral instructions embedded in the scenario fields and outputs:
+**4. Upgrade tab selector with scenario count badges (`src/pages/Reports.tsx`)**
 
-1. **Country enforcement**: "Generate a {contractType} template compliant with {country} commercial law. Reference well-known statutes (e.g., BGB for Germany, Code Civil for France). Do NOT fabricate legal citations."
+Each tab trigger shows a small badge with the number of scenarios that use that dashboard (from `getDashboardScenarioCount`). This signals which dashboards are most versatile.
 
-2. **Tier-based depth**: The `timeTier` value controls how many sections and how much detail the AI produces. Quick = structure + key clauses only. Thorough = every clause + risk commentary + alternative language.
+**5. Restructure `DashboardWithAnnotation` wrapper (`src/pages/Reports.tsx`)**
 
-3. **Anti-hallucination**: 
-   - Temperature 0.2 (existing Sentinel config)
-   - Mandatory `[REVIEW WITH LEGAL COUNSEL]` markers on uncertain clauses
-   - Output begins with legal disclaimer
-   - No invented statutes or case law references
+Replace the current minimal `ScenarioAnnotation` (tiny text below dashboard) with the new `DashboardContextCard` rendered ABOVE the dashboard. The card pulls data from the enriched `dashboardConfigs` and `getDashboardScenarioTitles`.
 
-4. **Raw brief extraction**: Same pattern as RFP Generator — AI parses the `contractBrief` textarea to extract parties, subject, value, duration, and special terms.
+### What This Does NOT Change
 
-5. **SMB-friendly tone**: Practical language, explains legal concepts in plain terms, flags what's truly critical vs. nice-to-have.
-
-### What This Does NOT Include
-
-- No new edge function (uses Sentinel pipeline)
-- No new component (uses GenericScenarioWizard)
+- No new pages or routes
 - No database changes
-- No multi-turn conversation (future iteration via EXOS Guide chat)
-- No non-EU countries (first edition)
-- No PDF contract export (uses existing report infrastructure)
+- No edge function changes
+- Dashboard visualization components themselves are untouched
+- Dashboard mappings (which scenarios use which dashboards) stay the same
 
 ### Technical Details
 
 ```text
-Files Modified: 4
+Files Modified: 2
+  1. src/lib/dashboard-mappings.ts
+     - Extend DashboardConfig interface with keyMetrics, whenToUse, questionsAnswered
+     - Populate all 14 dashboard configs with CFO-oriented content
 
-1. src/lib/scenarios.ts
-   - Add ScrollText import
-   - Add contract-template scenario object
-   - Fields: 8 (3 required + mainFocus + 4 optional)
+  2. src/pages/Reports.tsx
+     - Add "Guide Me" category cards section (5 decision categories)
+     - Add scenario count badges to tab triggers
+     - Replace DashboardWithAnnotation to render context card ABOVE dashboard
+     - Import and use new DashboardContextCard component
 
-2. src/lib/dashboard-mappings.ts
-   - Add "contract-template" mapping
+Files Created: 1
+  3. src/components/reports/DashboardContextCard.tsx
+     - Renders enriched metadata: whenToUse, keyMetrics, questionsAnswered
+     - Renders scenario list as badges
+     - Responsive layout (collapsible on mobile)
 
-3. src/lib/test-data-factory.ts
-   - Add contract-template generator function
+Files Removed: 0
 
-4. supabase/functions/generate-test-data/index.ts
-   - Add contract-template field list
-
-No new files created.
-No routing changes needed (GenericScenarioWizard handles all scenarios).
-Standard Sentinel pipeline used.
+No dependency changes.
 ```
 
