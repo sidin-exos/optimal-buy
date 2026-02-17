@@ -1,47 +1,57 @@
 
 
-## Bug Fixes: Chat Auto-Scroll and Published Version Connection Error
+## PROJECT_CONTEXT_FEB17 — Architecture Snapshot
 
-### Bug 1: Auto-Scrolling Prevents Watching Answer Generation
-
-**Root Cause:** The typewriter effect in `ChatMessage.tsx` calls `onTextReveal` (which triggers `scrollToBottom`) on every single character (every 12ms). Since the chat panel is only 420px tall, `isNearBottom()` almost always returns `true`, so every character typed forces a scroll — the user can never scroll up to observe generation happening.
-
-**Fix:** Remove the `onTextReveal` callback from the typewriter loop. Instead, only auto-scroll when a new message is added (already handled by the `useEffect` on `messages.length`). The user will be able to scroll freely during generation, and the scroll will only snap when new messages appear.
-
-**Files changed:**
-- `src/components/chat/ChatMessage.tsx` — Remove `onTextReveal?.()` call from the typewriter interval
-- `src/components/chat/ChatWidget.tsx` — Remove the `onTextReveal` prop from `ChatMessage` usage
+Create a new file `docs/PROJECT_CONTEXT_2026-02-17.md` containing the current project state. It will be downloadable via the published site by also placing a copy at `public/PROJECT_CONTEXT_2026-02-17.md`.
 
 ---
 
-### Bug 2: Published Version Returns "Trouble Connecting"
+### Content Structure
 
-**Root Cause:** The `chat-copilot` edge function calls `authenticateRequest()` which validates a JWT user token. When a user is not logged in, `supabase.functions.invoke()` sends only the anon key as the Bearer token. `getClaims()` fails on this non-user token, returning a 401 error. This causes `supabase.functions.invoke` to surface an error on the client, which triggers the fallback "trouble connecting" message.
+The document will follow the established format from previous snapshots, updated to reflect all changes since Feb 9:
 
-This likely works in preview because you happen to be logged in there, but on the published site you (or visitors) are not authenticated.
+**Milestone:** Security Hardening & Public Access Optimization
 
-The EXOS Guide chatbot is a public-facing onboarding tool — it should not require authentication.
+**Key Updates Since Feb 9:**
 
-**Fix:** Remove the `authenticateRequest` gate from the `chat-copilot` edge function so it works for all visitors. The function already has `verify_jwt = false` in config.toml, confirming the intent for public access.
+1. **Security Hardening**
+   - `create_shared_report` RPC hardened: server-side ID generation via `gen_random_bytes(16)`, 1MB payload limit, `anon` access revoked (authenticated only)
+   - All 10 public tables have RLS enabled
 
-**Files changed:**
-- `supabase/functions/chat-copilot/index.ts` — Remove `authenticateRequest` import and auth check block (lines 2, 85-91)
+2. **Edge Functions (8 total)**
+   - `chat-copilot` — auth gate removed for public onboarding access
+   - `scenario-tutorial` — public, no auth
+   - `sentinel-analysis` — authenticated, server-side grounding + LangSmith tracing
+   - `market-intelligence` — Perplexity Sonar Pro
+   - `market-snapshot` — authenticated, Perplexity + quality gate
+   - `generate-market-insights` — admin only
+   - `generate-test-data` — admin only
+   - Shared utilities: `_shared/auth.ts`, `_shared/validate.ts`, `_shared/langsmith.ts`
 
----
+3. **Frontend**
+   - 29 procurement scenarios (updated count, reordered: Cost Breakdown and Spend Analysis moved to top)
+   - Chat widget: typewriter auto-scroll bug fixed (removed per-character `onTextReveal`)
+   - Technology page: "Commercial Data Safety" card with link to `/architecture`
+   - 13 routes in App.tsx
+
+4. **Database Tables (10)**
+   - `chat_feedback`, `founder_metrics`, `industry_contexts`, `intel_queries`, `market_insights`, `procurement_categories`, `shared_reports`, `test_prompts`, `test_reports`, `user_roles`
+
+5. **Key Files Reference** — updated inventory
+
+6. **Observability** — LangSmith server-side only, "Production Quiet" mode
+
+The file will also be placed in `/public` so users can download it directly via `https://optimal-buy.lovable.app/PROJECT_CONTEXT_2026-02-17.md`.
 
 ### Technical Details
 
 ```text
-Files Modified: 3
+Files Created: 2
 
-1. src/components/chat/ChatMessage.tsx
-   - Remove onTextReveal?.() call from typewriter setInterval (line ~101)
+1. docs/PROJECT_CONTEXT_2026-02-17.md
+   - Full context snapshot markdown
 
-2. src/components/chat/ChatWidget.tsx
-   - Remove onTextReveal={scrollToBottom} prop from ChatMessage (line ~161)
-
-3. supabase/functions/chat-copilot/index.ts
-   - Remove authenticateRequest import (line 2)
-   - Remove auth validation block (lines 85-91)
+2. public/PROJECT_CONTEXT_2026-02-17.md
+   - Same content, publicly accessible for download
 ```
 
