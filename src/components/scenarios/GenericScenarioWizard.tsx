@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, Sparkles, AlertTriangle, FlaskConical, Loader2, 
 import { AnalysisPipelineAnimation } from "@/components/sentinel/AnalysisPipelineAnimation";
 import { DeepAnalysisPipeline } from "@/components/analysis/DeepAnalysisPipeline";
 import { DeepAnalysisResult } from "@/components/analysis/DeepAnalysisResult";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -224,6 +225,35 @@ const GenericScenarioWizard = ({ scenario }: GenericScenarioWizardProps) => {
   const handleAnalyze = async () => {
     setStep("analyzing");
     
+    // --- Market Snapshot: bypass Sentinel, call dedicated edge function ---
+    if (scenario.id === "market-snapshot") {
+      try {
+        const { data, error: fnError } = await supabase.functions.invoke("market-snapshot", {
+          body: {
+            region: formData.region,
+            analysisScope: formData.analysisScope,
+            successCriteria: formData.successCriteria || undefined,
+            timeframe: formData.timeframe,
+            industryContext: formData.industryContext || undefined,
+          },
+        });
+
+        if (fnError) throw new Error(fnError.message || "Market Snapshot failed");
+        if (data?.error) throw new Error(data.error);
+
+        setAnalysisResult(data.result);
+        setAnalysisTimestamp(new Date().toISOString());
+        setStep("results");
+        toast.success(`Analysis complete! Completeness: ${data.completenessScore ?? "N/A"}/100`);
+      } catch (err) {
+        console.error("[MarketSnapshot] Error:", err);
+        setStep("review");
+        toast.error(err instanceof Error ? err.message : "Market Snapshot failed. Please try again.");
+      }
+      return;
+    }
+
+    // --- Standard Sentinel pipeline for all other scenarios ---
     // Determine if we should use Google AI Studio (BYOK)
     const useGoogleAIStudio = configProvider === "google_ai_studio";
     const effectiveModel = useGoogleAIStudio ? configModel : selectedModel;

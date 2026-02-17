@@ -898,6 +898,35 @@ export const scenarios: Scenario[] = [
       "Monitoring Dashboard: Key risk indicators and trigger points",
     ],
   },
+  // Market Snapshot (Perplexity Sonar Pro + Quality Gate)
+  {
+    id: "market-snapshot",
+    title: "Market Snapshot",
+    description:
+      "Perplexity-powered regional competitive landscape analysis. Identifies major players, market share, and recent moves — then benchmarks output completeness against your Definition of Success.",
+    icon: Radar,
+    status: "available",
+    category: "planning",
+    requiredFields: [
+      { id: "industryContext", label: "Industry Context", description: "Auto-injected industry background for grounding", type: "text", required: false },
+      { id: "region", label: "Region of Analysis", description: "Select the specific country/region to analyze", type: "select", required: true, options: [
+        "Germany", "France", "UK", "Netherlands", "Spain", "Italy", "Poland",
+        "USA", "Canada", "Mexico", "Brazil",
+        "China", "Japan", "South Korea", "India", "Australia",
+        "UAE", "Saudi Arabia", "South Africa",
+      ] },
+      { id: "analysisScope", label: "Analysis Scope", description: "What do you want to know about this market?", type: "textarea", required: true, placeholder: "E.g., 'Top 5 logistics providers, their market share, pricing models, and recent M&A activity'" },
+      { id: "successCriteria", label: "Definition of Success (Optional)", description: "What does a good answer look like? AI will auto-generate criteria if left blank.", type: "textarea", required: false, placeholder: "E.g., 'Must include revenue figures, market share %, and at least 3 cited sources per player'" },
+      { id: "timeframe", label: "Timeframe", description: "How recent should the data be?", type: "select", required: true, options: ["Current Snapshot", "Past Month", "Past Quarter", "Past Year"] },
+    ],
+    outputs: [
+      "Regional Competitive Landscape (Major Players & Market Share)",
+      "Player Profiles (Strengths, Weaknesses, Recent Moves)",
+      "Completeness Scorecard (Definition of Success Benchmark)",
+      "Gap Analysis & Clarification Requests",
+      "Recommended Sources for Further Discovery",
+    ],
+  },
   // Spend Analysis & Categorization
   {
     id: "spend-analysis-categorization",

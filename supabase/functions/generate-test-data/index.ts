@@ -154,6 +154,9 @@ const SCENARIO_SCHEMAS: Record<string, string[]> = {
     "industryContext", "categoryContext", "historicalSpendData", "knownFutureEvents",
     "budgetConstraints", "forecastHorizon"
   ],
+  "market-snapshot": [
+    "industryContext", "region", "analysisScope", "successCriteria", "timeframe"
+  ],
   "saas-optimization": [
     "industryContext", "mainFocus", "totalSeats", "pricePerSeat", "lastLoginDate",
     "featureUsage", "contractEndDate", "noticePeriod", "autoRenewal"
