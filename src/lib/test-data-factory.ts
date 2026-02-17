@@ -564,6 +564,37 @@ Client shall review each deliverable within 10 business days. Silence constitute
     };
   },
 
+  "market-snapshot": () => {
+    const regions = [
+      "Germany", "France", "UK", "Netherlands", "Spain", "Italy", "Poland",
+      "USA", "Canada", "Mexico", "Brazil",
+      "China", "Japan", "South Korea", "India", "Australia",
+      "UAE", "Saudi Arabia", "South Africa",
+    ];
+    const scopes = [
+      "Top 5 logistics providers, their market share, pricing models, and recent M&A activity",
+      "Leading cloud infrastructure vendors, enterprise adoption rates, pricing tiers, and regional data center presence",
+      "Major raw material suppliers for automotive steel, capacity utilization, export restrictions, and price trends over the past year",
+      "Key contract manufacturing partners for electronics, certifications held (ISO 13485, IATF 16949), lead times, and minimum order quantities",
+      "Top SaaS procurement platforms, feature comparison, customer base size, funding status, and integration capabilities",
+      "Dominant facility management companies, service scope, contract models, and customer satisfaction benchmarks",
+    ];
+    const criteria = [
+      "Must include revenue figures, market share %, and at least 3 cited sources per player",
+      "Each player profile should have: founding year, headquarters, employee count, key clients, and competitive differentiator",
+      "Include at least 5 players with quantitative data points (revenue, growth rate). Flag any data older than 12 months",
+      "Need pricing benchmarks with currency-specific figures. Identify regulatory barriers to entry for this region",
+      "",
+    ];
+    return {
+      industryContext: getRandomIndustryContext(),
+      region: randomChoice(regions),
+      analysisScope: randomChoice(scopes),
+      successCriteria: randomChoice(criteria),
+      timeframe: randomChoice(["Current Snapshot", "Past Month", "Past Quarter", "Past Year"]),
+    };
+  },
+
   "requirements-gathering": () => ({
     industryContext: getRandomIndustryContext(),
     businessGoal: randomChoice([
