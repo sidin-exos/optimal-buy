@@ -14,6 +14,7 @@ import DashboardShowcase from "./pages/DashboardShowcase";
 import MarketIntelligence from "./pages/MarketIntelligence";
 import ArchitectureDiagram from "./pages/ArchitectureDiagram";
 import DevWorkflow from "./pages/DevWorkflow";
+import TestingPipeline from "./pages/TestingPipeline";
 import OrgChart from "./pages/OrgChart";
 import Auth from "./pages/Auth";
 import Account from "./pages/Account";
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/market-intelligence" element={<MarketIntelligence />} />
             <Route path="/architecture" element={<ArchitectureDiagram />} />
             <Route path="/dev-workflow" element={<DevWorkflow />} />
+            <Route path="/testing-pipeline" element={<TestingPipeline />} />
             <Route path="/org-chart" element={<OrgChart />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/account" element={<Account />} />
