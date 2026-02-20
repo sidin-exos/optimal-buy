@@ -1,16 +1,18 @@
 import { useRef, useState, useMemo } from "react";
 import { toPng, toSvg } from "html-to-image";
-import { Download, Image, FileCode, ArrowLeft, Sparkles, Zap } from "lucide-react";
+import { Download, Image, FileCode, ArrowLeft, Sparkles, Zap, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Header from "@/components/layout/Header";
 import { NavLink } from "@/components/NavLink";
 import TestingPipelineDiagram from "@/components/architecture/TestingPipelineDiagram";
 import LaunchTestBatch from "@/components/testing/LaunchTestBatch";
 import RefactoringBacklog from "@/components/testing/RefactoringBacklog";
 import TestSessionLog from "@/components/testing/TestSessionLog";
+import { useTestStats } from "@/hooks/useTestDatabase";
 import { scenarios } from "@/lib/scenarios";
 import type { EvolutionaryDirective } from "@/lib/testing/types";
 import {
@@ -72,12 +74,16 @@ const ACTION_COLORS: Record<string, string> = {
   OPTIONAL_KEEP: "text-amber-600 bg-amber-50 border-amber-200",
 };
 
+const AUDIT_THRESHOLD = 10;
+
 const TestingPipeline = () => {
   const diagramRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [scenarioId, setScenarioId] = useState("");
 
   const selectedScenario = scenarios.find((s) => s.id === scenarioId);
+  const { data: stats } = useTestStats(scenarioId || undefined);
+  const isThresholdReached = (stats?.totalReports ?? 0) >= AUDIT_THRESHOLD;
 
   const downloadAsPNG = async () => {
     if (!diagramRef.current) return;
@@ -237,10 +243,19 @@ const TestingPipeline = () => {
                 <Badge variant="default" className="text-sm">{selectedScenario.title}</Badge>
               </div>
             )}
+            {scenarioId && isThresholdReached && (
+              <Alert className="border-green-500 bg-green-50 text-green-800 dark:bg-green-950/30 dark:text-green-300 dark:border-green-700">
+                <Target className="h-4 w-4 text-green-600 dark:text-green-400" />
+                <AlertTitle className="text-green-800 dark:text-green-300">🎯 Ready for AI Audit</AlertTitle>
+                <AlertDescription className="text-green-700 dark:text-green-400">
+                  10+ tests completed for this scenario. Export the JSON and share it with Gemini for meta-analysis.
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-1 space-y-6">
                 <LaunchTestBatch scenarioId={scenarioId} onScenarioChange={setScenarioId} />
-                {scenarioId && <TestSessionLog scenarioType={scenarioId} />}
+                {scenarioId && <TestSessionLog scenarioType={scenarioId} isThresholdReached={isThresholdReached} />}
               </div>
               <div className="lg:col-span-2">
                 <RefactoringBacklog scenarioType={scenarioId || undefined} />

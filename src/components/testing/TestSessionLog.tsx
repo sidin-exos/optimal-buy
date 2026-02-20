@@ -8,6 +8,7 @@ import type { TestPromptWithReport } from "@/hooks/useTestDatabase";
 
 interface TestSessionLogProps {
   scenarioType: string;
+  isThresholdReached?: boolean;
 }
 
 interface DateGroup {
@@ -84,7 +85,7 @@ function downloadJSON(data: unknown, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-const TestSessionLog = ({ scenarioType }: TestSessionLogProps) => {
+const TestSessionLog = ({ scenarioType, isThresholdReached }: TestSessionLogProps) => {
   const { data: prompts, isLoading } = useTestPromptsByScenario(scenarioType, 200);
 
   const dateGroups = useMemo(() => groupByDate(prompts || []), [prompts]);
@@ -136,9 +137,9 @@ const TestSessionLog = ({ scenarioType }: TestSessionLogProps) => {
                   </div>
                 </div>
                 <Button
-                  variant="outline"
+                  variant={isThresholdReached ? "default" : "outline"}
                   size="sm"
-                  className="gap-1.5 shrink-0"
+                  className={`gap-1.5 shrink-0 ${isThresholdReached ? "animate-pulse" : ""}`}
                   onClick={() => {
                     const data = buildFeedbackJSON(scenarioType, group.date, group.prompts);
                     downloadJSON(data, `${scenarioType}_${group.date}.json`);
@@ -146,6 +147,9 @@ const TestSessionLog = ({ scenarioType }: TestSessionLogProps) => {
                 >
                   <Download className="w-3.5 h-3.5" />
                   Export Feedback
+                  {isThresholdReached && (
+                    <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">Ready</Badge>
+                  )}
                 </Button>
               </div>
             ))}
