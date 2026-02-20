@@ -1,42 +1,42 @@
 
 
-## Close the Generate-then-Execute Loop + Pass Persona
+# Scenario Testing Threshold Alert (N=10)
 
-### Problem
-`LaunchTestBatch` calls `generateAITestData()` to create synthetic data, then stops. It never sends that data through `sentinel-analysis`, so nothing is recorded in `test_prompts`/`test_reports`, and the Session Log stays empty. Additionally, the `persona` selection is not being passed to the generation function.
+## Overview
+Add visual progress tracking and a threshold alert to the Testing Pipeline Command Center so the QA engineer knows exactly when a scenario has enough data (10+ test reports) to export for external AI audit.
 
-### Changes (2 files)
+## Changes
 
-**1. `src/lib/ai-test-data-generator.ts`**
-- Add `persona?: string` to the `GenerateOptions` interface
-- Pass `persona` in the request body to `generate-test-data`
+### 1. Progress Bar in TestStatsCards
+**File: `src/components/testing/TestStatsCards.tsx`**
 
-**2. `src/components/testing/LaunchTestBatch.tsx`**
-- Import `supabase` client and `useModelConfig` hook
-- Import `useQueryClient` from `@tanstack/react-query` for cache invalidation
-- Add a `phase` state (`"idle" | "generating" | "analyzing"`) replacing the boolean `isRunning`
-- Update `handleLaunch` to a two-phase flow:
-  - **Phase 1 ("Generating..."):** Call `generateAITestData()` with `persona` included in the options. On failure, toast error and stop.
-  - **Phase 2 ("Analyzing..."):** Call `supabase.functions.invoke('sentinel-analysis', ...)` with the generated data, passing `scenarioType`, `scenarioData`, `industrySlug`, `categorySlug`, `serverSideGrounding: true`, `enableTestLogging: true`, and the current `model` from `ModelConfigContext`.
-  - On success, toast with generation score + token count from the sentinel response.
-  - On failure in Phase 2, toast the error but note Phase 1 succeeded.
-  - Invalidate `["test-prompts", ...]` and `["test-stats", ...]` queries so the Session Log and Stats Cards auto-refresh.
-- Update button text: `"Generating..."` / `"Analyzing..."` / `"Launch Test"` based on `phase`
+- Add a 6th visual element: a progress bar showing `X / 10` runs toward the audit threshold.
+- Use the existing `stats.totalReports` from `useTestStats(scenarioType)`.
+- Display using the existing `Progress` component (`src/components/ui/progress.tsx`) with a label like `"Audit Readiness: X / 10 runs"`.
+- Clamp the progress value at 100% once threshold is met.
+- Only render when a `scenarioType` is selected.
 
-### UX Flow After Fix
+### 2. Threshold Alert Banner in Command Center
+**File: `src/pages/TestingPipeline.tsx`**
 
-```text
-User clicks "Launch Test"
-  Phase 1: generate-test-data (synthetic input created, persona applied)
-    Button shows "Generating..."
-  Phase 2: sentinel-analysis (input analyzed, logged to DB)
-    Button shows "Analyzing..."
-  Toast: "Test complete -- Score: 95 | Tokens: 1,234"
-  Session Log auto-refreshes with new entry
-```
+- Import `useTestStats` and the `Alert` component.
+- Inside the Command Center tab, after the "Focusing on" badge and before the grid, conditionally render a success-styled `Alert` when `stats.totalReports >= 10`.
+- Message: "Ready for AI Audit: 10+ tests completed for this scenario. Export the JSON and share it with Gemini for meta-analysis."
+- Use green/success styling (e.g., `border-green-500 bg-green-50 text-green-800`).
 
-### What Stays the Same
-- Edge functions are unchanged (both already support these parameters)
-- Session Log and Stats Cards already read from `test_prompts`/`test_reports` -- they auto-populate once data flows in
-- The `userPrompt` sent to `sentinel-analysis` will be a JSON stringification of the generated scenario data (matching how the wizard sends data)
+### 3. Highlighted Export Button in TestSessionLog
+**File: `src/components/testing/TestSessionLog.tsx`**
+
+- Accept a new optional prop `isThresholdReached?: boolean`.
+- When `true`, apply a visual highlight to each "Export Feedback" button:
+  - Switch variant from `outline` to `default` (primary color).
+  - Add a small "Ready" `Badge` next to the button text.
+  - Add a subtle pulse animation class (`animate-pulse` or a custom gentle glow).
+- Pass `isThresholdReached` from `TestingPipeline.tsx` based on the stats check.
+
+## Technical Details
+
+- **No database changes required.** All data comes from the existing `useTestStats` hook which already filters by `scenarioType`.
+- The `THRESHOLD` constant (10) will be defined once in `TestingPipeline.tsx` and passed down as needed.
+- The `Progress` component from `@radix-ui/react-progress` is already installed and available at `src/components/ui/progress.tsx`.
 
