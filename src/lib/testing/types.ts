@@ -19,7 +19,8 @@ export type BuyerPersona =
   | 'rushed-junior'
   | 'methodical-manager'
   | 'cfo-finance'
-  | 'frustrated-stakeholder';
+  | 'frustrated-stakeholder'
+  | 'lost-user';
 
 /** Field-level verdict produced by the AI Judge */
 export type FieldAction =

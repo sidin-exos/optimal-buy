@@ -22,6 +22,7 @@ const PERSONAS: { value: BuyerPersona; label: string; desc: string }[] = [
   { value: "methodical-manager", label: "Methodical Category Manager", desc: "Highly detailed, structured input" },
   { value: "cfo-finance", label: "CFO / Finance Leader", desc: "Financial precision, high-level summaries" },
   { value: "frustrated-stakeholder", label: "Frustrated Stakeholder", desc: "Messy narratives, ad-hoc usage" },
+  { value: "lost-user", label: "Lost User (Out-of-Scope)", desc: "Irrelevant queries, zero procurement context" },
 ];
 
 const ENTROPY_LEVELS: { value: string; level: EntropyLevel; label: string; desc: string }[] = [

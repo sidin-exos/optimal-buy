@@ -86,6 +86,12 @@ const BUYER_PERSONAS = [
     name: "The Frustrated Stakeholder (Business Unit)",
     description: "A non-procurement user (e.g., Marketing or IT Director) forced to use the system. Complains in the text fields, provides messy narrative data instead of structured facts, and misunderstands procurement terminology.",
     optionalFillRate: "50-70% (filled but often with wrong format)"
+  },
+  {
+    id: "lost-user",
+    name: "The Lost User (Out-of-Scope)",
+    description: "A user who completely misunderstands what this procurement system is for. They ask completely irrelevant questions like 'What is the weather in London?', 'Write a python script for a calculator', or 'How to bake a chocolate cake'. They dump this random question into the main text field and ignore all other fields.",
+    optionalFillRate: "0%"
   }
 ];
 
