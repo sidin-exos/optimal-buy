@@ -335,21 +335,27 @@ Client shall review each deliverable within 10 business days. Silence constitute
       "Need to source commercial cleaning services for our new headquarters building.\n\nBuilding: 25,000 sqm office space, 3 floors + basement parking\nLocation: Amsterdam Zuid business district\nStart date: September 2026\nEmployees: ~800\n\nScope:\n- Daily office cleaning (Mon-Fri)\n- Deep cleaning monthly\n- Window cleaning quarterly\n- Restroom supplies management\n- Green/sustainable products preferred\n\nBudget: haven't set one yet, need market pricing first. Maybe €200-300k range?\n\nPrevious vendor was unreliable with staffing. Need guaranteed minimum staffing levels and backup protocols.\n\nAlso interested in integrated facility management if the same provider can handle security and reception.",
       "We need to procure a fleet management and telematics solution for our delivery operations.\n\n- Fleet size: 85 vehicles (60 vans, 25 trucks)\n- Operating across Benelux region\n- Need real-time GPS tracking, route optimization, driver behavior monitoring\n- Must integrate with our existing TMS (Oracle Transportation Management)\n- Fuel card integration required\n- Budget: €120k setup + €8k/month operational\n- Implementation timeline: go-live by Q3 2026\n\nWe're also evaluating EV transition — solution should support mixed fleet (ICE + EV) with charging station management.\n\nCompliance: need to meet EU tachograph regulations and sustainability reporting requirements.",
     ]),
-    documentTypes: randomChoice([
-      "RFP Document (Request for Proposal) — Full proposal request with scope, evaluation criteria, and response template",
-      "RFI Document (Request for Information) — Exploratory request to assess supplier capabilities before formal tendering",
-      "RFQ Document (Request for Quotation) — Price-focused request for well-defined requirements with clear specifications",
-      "Full Tender Package (RFP + Evaluation Matrix + Cover Letter) — Complete package ready for formal distribution",
+    budgetRange: randomChoice([
+      "€150k-200k annually",
+      "$500k total project budget",
+      "Not yet defined — need market pricing",
+      "",
     ]),
     evaluationPriorities: randomChoice([
       "Price 35%, Technical Capability 30%, Experience 20%, Implementation Plan 15%",
       "Quality 40%, Price 30%, Sustainability 20%, References 10%",
       "",
     ]),
-    budgetRange: randomChoice([
-      "€150k-200k annually",
-      "$500k total project budget",
-      "Not yet defined — need market pricing",
+    technicalRequirements: randomChoice([
+      "50 MacBook Pro M3 (32GB RAM, 512GB SSD), 20 Dell U2723QE monitors, 50 USB-C docking stations. All devices must support MDM enrollment (Jamf).",
+      "15,000 tons Grade 500 rebar (12mm and 16mm diameter), 8,000 m³ C30/37 ready-mix concrete. Delivery to 3 sites within Hamburg metro area.",
+      "SaaS platform must support SSO (SAML 2.0), handle 10,000 concurrent users, and provide 99.95% uptime SLA. API rate limit: minimum 1,000 req/min.",
+      "",
+    ]),
+    incumbentData: randomChoice([
+      "Currently using TransEuro GmbH at EUR 165k/year. Lead time: 48h for standard deliveries. On-time delivery rate: 91%. Contract expires June 2026.",
+      "Incumbent: TechServe AG, €380k/year for L1/L2 support. Average ticket resolution: 4.2h. Customer satisfaction: 3.1/5. Pain points: poor escalation transparency, no proactive monitoring.",
+      "No current supplier — greenfield procurement. Previously handled in-house with 3 FTEs (estimated cost €210k/year fully loaded).",
       "",
     ]),
     additionalInstructions: randomChoice([
