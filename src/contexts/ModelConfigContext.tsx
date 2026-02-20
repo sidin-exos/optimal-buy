@@ -59,6 +59,14 @@ function saveConfig(config: ModelConfig): void {
 export function ModelConfigProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<ModelConfig>(loadConfig);
 
+  // Auto-migrate invalid models at runtime (covers HMR / stale cache)
+  useEffect(() => {
+    if (config.provider === "lovable" && !VALID_LOVABLE_MODELS.includes(config.model)) {
+      console.warn(`[ModelConfig] Invalid model "${config.model}", resetting to default`);
+      setConfig((prev) => ({ ...prev, model: DEFAULT_CONFIG.model }));
+    }
+  }, [config.provider, config.model]);
+
   // Persist to localStorage on every change
   useEffect(() => {
     saveConfig(config);
