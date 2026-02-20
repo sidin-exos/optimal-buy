@@ -3,14 +3,16 @@ import { toPng, toSvg } from "html-to-image";
 import { Download, Image, FileCode, ArrowLeft, Sparkles, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Header from "@/components/layout/Header";
 import { NavLink } from "@/components/NavLink";
 import TestingPipelineDiagram from "@/components/architecture/TestingPipelineDiagram";
 import LaunchTestBatch from "@/components/testing/LaunchTestBatch";
 import RefactoringBacklog from "@/components/testing/RefactoringBacklog";
-import { useTestPrompts } from "@/hooks/useTestDatabase";
-import type { EvolutionaryDirective, ExperiencePoolSummary } from "@/lib/testing/types";
+import TestSessionLog from "@/components/testing/TestSessionLog";
+import { scenarios } from "@/lib/scenarios";
+import type { EvolutionaryDirective } from "@/lib/testing/types";
 import {
   ChartContainer,
   ChartTooltip,
@@ -73,6 +75,9 @@ const ACTION_COLORS: Record<string, string> = {
 const TestingPipeline = () => {
   const diagramRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [scenarioId, setScenarioId] = useState("");
+
+  const selectedScenario = scenarios.find((s) => s.id === scenarioId);
 
   const downloadAsPNG = async () => {
     if (!diagramRef.current) return;
@@ -226,12 +231,19 @@ const TestingPipeline = () => {
 
           {/* Tab 2: Command Center */}
           <TabsContent value="command-center" className="space-y-8">
+            {scenarioId && selectedScenario && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Focusing on:</span>
+                <Badge variant="default" className="text-sm">{selectedScenario.title}</Badge>
+              </div>
+            )}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-1">
-                <LaunchTestBatch />
+              <div className="lg:col-span-1 space-y-6">
+                <LaunchTestBatch scenarioId={scenarioId} onScenarioChange={setScenarioId} />
+                {scenarioId && <TestSessionLog scenarioType={scenarioId} />}
               </div>
               <div className="lg:col-span-2">
-                <RefactoringBacklog />
+                <RefactoringBacklog scenarioType={scenarioId || undefined} />
               </div>
             </div>
           </TabsContent>

@@ -3,8 +3,12 @@ import { useTestStats } from "@/hooks/useTestDatabase";
 import StatCard from "@/components/dashboard/StatCard";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const TestStatsCards = () => {
-  const { data: stats, isLoading } = useTestStats();
+interface TestStatsCardsProps {
+  scenarioType?: string;
+}
+
+const TestStatsCards = ({ scenarioType }: TestStatsCardsProps) => {
+  const { data: stats, isLoading } = useTestStats(scenarioType);
 
   if (isLoading) {
     return (
