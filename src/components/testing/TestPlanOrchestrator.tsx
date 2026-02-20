@@ -1,0 +1,285 @@
+import { useState, useCallback } from "react";
+import { Shuffle, Play, Copy, Download, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "@/hooks/use-toast";
+import { generateAITestData, INDUSTRY_CATEGORY_COMPATIBILITY } from "@/lib/ai-test-data-generator";
+import { supabase } from "@/integrations/supabase/client";
+import type { BuyerPersona, EntropyLevel, TestPlanItem } from "@/lib/testing/types";
+
+const PERSONAS: BuyerPersona[] = [
+  "rushed-junior",
+  "methodical-manager",
+  "cfo-finance",
+  "frustrated-stakeholder",
+  "lost-user",
+];
+
+function randomChoice<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+type Phase = "idle" | "generating-plan" | "running";
+
+interface ExecutionResult {
+  index: number;
+  status: "success" | "error";
+  error?: string;
+}
+
+interface TestPlanOrchestratorProps {
+  scenarioId: string;
+  model: string;
+}
+
+const TestPlanOrchestrator = ({ scenarioId, model }: TestPlanOrchestratorProps) => {
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [generatedPlan, setGeneratedPlan] = useState<TestPlanItem[] | null>(null);
+  const [importedJson, setImportedJson] = useState("");
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [totalItems, setTotalItems] = useState(0);
+  const [results, setResults] = useState<ExecutionResult[]>([]);
+  const queryClient = useQueryClient();
+
+  // ── Plan Generation ──
+  const handleGeneratePlan = useCallback(() => {
+    if (!scenarioId) {
+      toast({ title: "Select a scenario first", variant: "destructive" });
+      return;
+    }
+
+    const industries = Object.keys(INDUSTRY_CATEGORY_COMPATIBILITY);
+    const plan: TestPlanItem[] = [];
+
+    for (let i = 0; i < 15; i++) {
+      const industrySlug = randomChoice(industries);
+      const categories = INDUSTRY_CATEGORY_COMPATIBILITY[industrySlug];
+      const categorySlug = randomChoice(categories);
+      const persona = randomChoice(PERSONAS);
+      const entropyLevel = randomChoice([1, 2, 3]) as EntropyLevel;
+
+      plan.push({ scenarioId, persona, industrySlug, categorySlug, entropyLevel });
+    }
+
+    setGeneratedPlan(plan);
+    toast({ title: "Draft plan generated", description: "15 random combinations ready for review." });
+  }, [scenarioId]);
+
+  const handleCopy = useCallback(() => {
+    if (!generatedPlan) return;
+    navigator.clipboard.writeText(JSON.stringify(generatedPlan, null, 2));
+    toast({ title: "Copied to clipboard" });
+  }, [generatedPlan]);
+
+  const handleDownload = useCallback(() => {
+    if (!generatedPlan) return;
+    const blob = new Blob([JSON.stringify(generatedPlan, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `test-plan-${scenarioId}-draft.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [generatedPlan, scenarioId]);
+
+  // ── Plan Execution ──
+  const handleRunPlan = useCallback(async () => {
+    let plan: TestPlanItem[];
+    try {
+      plan = JSON.parse(importedJson);
+      if (!Array.isArray(plan) || plan.length === 0) throw new Error("Empty array");
+    } catch {
+      toast({ title: "Invalid JSON", description: "Paste a valid JSON array of test plan items.", variant: "destructive" });
+      return;
+    }
+
+    setPhase("running");
+    setTotalItems(plan.length);
+    setCurrentIndex(0);
+    setResults([]);
+
+    const runResults: ExecutionResult[] = [];
+
+    for (let i = 0; i < plan.length; i++) {
+      setCurrentIndex(i + 1);
+      const item = plan[i];
+
+      try {
+        // Phase 1: Generate synthetic data
+        const genResult = await generateAITestData({
+          scenarioType: item.scenarioId,
+          persona: item.persona,
+          industry: item.industrySlug,
+          category: item.categorySlug,
+          mctsIterations: item.entropyLevel === 3 ? 1 : 3,
+        });
+
+        if (!genResult.success) {
+          runResults.push({ index: i, status: "error", error: `Generation failed: ${genResult.error}` });
+          continue;
+        }
+
+        // Phase 2: Run through sentinel-analysis
+        const { error: analysisError } = await supabase.functions.invoke("sentinel-analysis", {
+          body: {
+            scenarioType: item.scenarioId,
+            scenarioData: genResult.data,
+            userPrompt: JSON.stringify(genResult.data),
+            industrySlug: item.industrySlug,
+            categorySlug: item.categorySlug,
+            serverSideGrounding: true,
+            enableTestLogging: true,
+            model,
+          },
+        });
+
+        if (analysisError) {
+          runResults.push({ index: i, status: "error", error: `Analysis failed: ${analysisError.message}` });
+        } else {
+          runResults.push({ index: i, status: "success" });
+        }
+      } catch (err) {
+        runResults.push({ index: i, status: "error", error: err instanceof Error ? err.message : "Unknown error" });
+      }
+
+      // Rate-limit protection
+      if (i < plan.length - 1) await sleep(1000);
+    }
+
+    setResults(runResults);
+    setPhase("idle");
+
+    // Invalidate caches
+    queryClient.invalidateQueries({ queryKey: ["test-prompts"] });
+    queryClient.invalidateQueries({ queryKey: ["test-stats"] });
+
+    const successCount = runResults.filter((r) => r.status === "success").length;
+    const failCount = runResults.filter((r) => r.status === "error").length;
+
+    toast({
+      title: "Plan execution complete",
+      description: `${successCount}/${plan.length} succeeded, ${failCount} failed`,
+      variant: failCount > 0 ? "destructive" : "default",
+    });
+  }, [importedJson, model, queryClient]);
+
+  const successCount = results.filter((r) => r.status === "success").length;
+  const failedResults = results.filter((r) => r.status === "error");
+
+  return (
+    <Card className="card-elevated">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Shuffle className="w-5 h-5 text-primary" />
+          Test Plan Orchestrator
+        </CardTitle>
+        <CardDescription>
+          Generate a draft plan, review externally, then execute the approved batch automatically.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* ── Plan Generation ── */}
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-foreground">1. Generate Draft Plan</p>
+          <Button
+            variant="outline"
+            onClick={handleGeneratePlan}
+            disabled={!scenarioId || phase === "running"}
+            className="w-full gap-2"
+          >
+            <Shuffle className="w-4 h-4" />
+            Generate Draft Plan (N=15)
+          </Button>
+
+          {generatedPlan && (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={handleCopy} className="gap-1.5">
+                  <Copy className="w-3.5 h-3.5" /> Copy
+                </Button>
+                <Button variant="ghost" size="sm" onClick={handleDownload} className="gap-1.5">
+                  <Download className="w-3.5 h-3.5" /> Download
+                </Button>
+              </div>
+              <pre className="text-xs bg-muted/50 border rounded-lg p-3 max-h-48 overflow-auto font-mono">
+                {JSON.stringify(generatedPlan, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
+
+        {/* ── Plan Execution ── */}
+        <div className="space-y-3 border-t pt-4">
+          <p className="text-sm font-medium text-foreground">2. Execute Approved Plan</p>
+          <Textarea
+            placeholder='Paste approved JSON array here (e.g., filtered to ~10 items)...'
+            value={importedJson}
+            onChange={(e) => setImportedJson(e.target.value)}
+            rows={4}
+            className="font-mono text-xs"
+            disabled={phase === "running"}
+          />
+          <Button
+            variant="hero"
+            onClick={handleRunPlan}
+            disabled={phase === "running" || !importedJson.trim()}
+            className="w-full gap-2"
+          >
+            {phase === "running" ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Executing test {currentIndex} of {totalItems}…
+              </>
+            ) : (
+              <>
+                <Play className="w-4 h-4" />
+                Run Automated Plan
+              </>
+            )}
+          </Button>
+
+          {phase === "running" && totalItems > 0 && (
+            <Progress value={(currentIndex / totalItems) * 100} className="h-2" />
+          )}
+        </div>
+
+        {/* ── Results Summary ── */}
+        {results.length > 0 && phase === "idle" && (
+          <div className="space-y-3 border-t pt-4">
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                {successCount} passed
+              </Badge>
+              {failedResults.length > 0 && (
+                <Badge variant="destructive" className="gap-1.5">
+                  <XCircle className="w-3.5 h-3.5" />
+                  {failedResults.length} failed
+                </Badge>
+              )}
+            </div>
+            {failedResults.length > 0 && (
+              <div className="space-y-1.5">
+                {failedResults.map((r) => (
+                  <div key={r.index} className="text-xs text-destructive bg-destructive/10 rounded px-2 py-1">
+                    <strong>Item {r.index + 1}:</strong> {r.error}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+export default TestPlanOrchestrator;

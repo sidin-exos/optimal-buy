@@ -13,7 +13,9 @@ import TestingPipelineDiagram from "@/components/architecture/TestingPipelineDia
 import LaunchTestBatch from "@/components/testing/LaunchTestBatch";
 import RefactoringBacklog from "@/components/testing/RefactoringBacklog";
 import TestSessionLog from "@/components/testing/TestSessionLog";
+import TestPlanOrchestrator from "@/components/testing/TestPlanOrchestrator";
 import { useTestStats } from "@/hooks/useTestDatabase";
+import { useModelConfig } from "@/contexts/ModelConfigContext";
 import { scenarios } from "@/lib/scenarios";
 import type { EvolutionaryDirective } from "@/lib/testing/types";
 import {
@@ -78,6 +80,7 @@ const ACTION_COLORS: Record<string, string> = {
 const AUDIT_THRESHOLD = 10;
 
 const TestingPipeline = () => {
+  const { model } = useModelConfig();
   const diagramRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -266,6 +269,7 @@ const TestingPipeline = () => {
               <div className="lg:col-span-1 space-y-6">
                 <LaunchTestBatch scenarioId={scenarioId} onScenarioChange={setScenarioId} />
                 {scenarioId && <TestSessionLog scenarioType={scenarioId} scenarioTitle={selectedScenario?.title} isThresholdReached={isThresholdReached} />}
+                {scenarioId && <TestPlanOrchestrator scenarioId={scenarioId} model={model} />}
               </div>
               <div className="lg:col-span-2">
                 <RefactoringBacklog scenarioType={scenarioId || undefined} />
