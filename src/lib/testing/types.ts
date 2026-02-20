@@ -155,3 +155,16 @@ export interface ExperiencePoolSummary {
   /** Accuracy trend per batch: [batch_index, accuracy] */
   accuracy_trend: Array<{ batch: number; accuracy: number }>;
 }
+
+// ============================================
+// TEST PLAN ORCHESTRATOR
+// ============================================
+
+/** A single item in a generated/approved test plan */
+export interface TestPlanItem {
+  scenarioId: string;
+  persona: BuyerPersona;
+  industrySlug: string;
+  categorySlug: string;
+  entropyLevel: EntropyLevel;
+}
