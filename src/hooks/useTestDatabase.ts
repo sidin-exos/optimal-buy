@@ -124,24 +124,39 @@ export function useTestPrompt(promptId: string | null) {
 }
 
 /**
- * Get test statistics
+ * Get test statistics (global or filtered by scenario)
  */
-export function useTestStats() {
+export function useTestStats(scenarioType?: string) {
   return useQuery({
-    queryKey: ["test-stats"],
+    queryKey: ["test-stats", scenarioType || "all"],
     queryFn: async () => {
       // Get prompt count
-      const { count: promptCount, error: promptError } = await supabase
+      let promptQuery = supabase
         .from("test_prompts")
         .select("*", { count: "exact", head: true });
+      if (scenarioType) promptQuery = promptQuery.eq("scenario_type", scenarioType);
+      const { count: promptCount, error: promptError } = await promptQuery;
 
       if (promptError) throw promptError;
 
-      // Get report count and success rate
-      const { data: reports, error: reportError } = await supabase
+      // Get prompt IDs for this scenario to filter reports
+      let reportQuery = supabase
         .from("test_reports")
-        .select("success, processing_time_ms");
+        .select("success, processing_time_ms, prompt_id");
 
+      if (scenarioType) {
+        const { data: promptIds } = await supabase
+          .from("test_prompts")
+          .select("id")
+          .eq("scenario_type", scenarioType);
+        const ids = promptIds?.map(p => p.id) || [];
+        if (ids.length === 0) {
+          return { totalPrompts: 0, totalReports: 0, successRate: 0, avgProcessingTimeMs: 0 };
+        }
+        reportQuery = reportQuery.in("prompt_id", ids);
+      }
+
+      const { data: reports, error: reportError } = await reportQuery;
       if (reportError) throw reportError;
 
       const successCount = reports?.filter(r => r.success).length || 0;

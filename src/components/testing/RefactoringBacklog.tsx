@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useTestPrompts } from "@/hooks/useTestDatabase";
+import { useTestPrompts, useTestPromptsByScenario } from "@/hooks/useTestDatabase";
 import type { FieldAction } from "@/lib/testing/types";
 import TestStatsCards from "./TestStatsCards";
 
@@ -64,8 +64,14 @@ function extractEvaluations(shadowLog: Record<string, unknown> | null) {
   return { fields: fieldEvals, gaps };
 }
 
-const RefactoringBacklog = () => {
-  const { data: prompts, isLoading } = useTestPrompts(100);
+interface RefactoringBacklogProps {
+  scenarioType?: string;
+}
+
+const RefactoringBacklog = ({ scenarioType }: RefactoringBacklogProps) => {
+  const allPrompts = useTestPrompts(100);
+  const scenarioPrompts = useTestPromptsByScenario(scenarioType || "", 100);
+  const { data: prompts, isLoading } = scenarioType ? scenarioPrompts : allPrompts;
 
   const { fieldAggregations, schemaGaps } = useMemo(() => {
     if (!prompts) return { fieldAggregations: [] as FieldAggregation[], schemaGaps: [] as SchemaGapItem[] };
@@ -122,7 +128,7 @@ const RefactoringBacklog = () => {
 
   return (
     <div className="space-y-6">
-      <TestStatsCards />
+      <TestStatsCards scenarioType={scenarioType} />
 
       {/* Consensus Actions */}
       <Card className="card-elevated">

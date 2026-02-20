@@ -30,8 +30,12 @@ const ENTROPY_LEVELS: { value: string; level: EntropyLevel; label: string; desc:
   { value: "3", level: 3, label: "L3 — Raw Dump", desc: "90% unstructured input" },
 ];
 
-const LaunchTestBatch = () => {
-  const [scenarioId, setScenarioId] = useState("");
+interface LaunchTestBatchProps {
+  scenarioId: string;
+  onScenarioChange: (id: string) => void;
+}
+
+const LaunchTestBatch = ({ scenarioId, onScenarioChange }: LaunchTestBatchProps) => {
   const [persona, setPersona] = useState<BuyerPersona>("rushed-junior");
   const [entropy, setEntropy] = useState<string>("2");
   const [industry, setIndustry] = useState("");
@@ -97,7 +101,7 @@ const LaunchTestBatch = () => {
         {/* Scenario */}
         <div className="space-y-2">
           <Label>Scenario Type</Label>
-          <Select value={scenarioId} onValueChange={setScenarioId}>
+          <Select value={scenarioId} onValueChange={onScenarioChange}>
             <SelectTrigger>
               <SelectValue placeholder="Select scenario…" />
             </SelectTrigger>
