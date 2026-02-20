@@ -1,58 +1,29 @@
 
 
-## Token Usage Tracking for Value QA
+## Implement "Lost User" Negative Test Persona
 
-### Overview
-Add dedicated integer columns for token metrics to `test_reports`, populate them from the edge function, and surface them in the frontend stats and JSON export.
+Add a 5th buyer persona (`lost-user`) for out-of-scope testing to ensure `sentinel-analysis` rejects irrelevant queries instead of hallucinating procurement advice.
 
-### Changes
+### Changes (3 files)
 
-**1. Database Migration**
-Add three integer columns to `test_reports`:
-```text
-prompt_tokens   integer DEFAULT 0
-completion_tokens integer DEFAULT 0
-total_tokens    integer DEFAULT 0
-```
-These enable simple AVG/SUM aggregations without parsing the existing `token_usage` JSONB column.
+**1. Edge Function: `supabase/functions/generate-test-data/index.ts`**
+- Add 5th entry to `BUYER_PERSONAS` array (after `frustrated-stakeholder` at line 89):
+  - id: `"lost-user"`
+  - name: `"The Lost User (Out-of-Scope)"`
+  - description: User who misunderstands the system, asks irrelevant questions (weather, recipes, coding help), dumps random text into main field, ignores all other fields
+  - optionalFillRate: `"0%"`
 
-**2. Edge Function: `supabase/functions/sentinel-analysis/index.ts`**
-Both insert paths (Google AI Studio at ~line 455 and Lovable Gateway at ~line 640) already compute a `usage` object with `{ prompt_tokens, completion_tokens, total_tokens }`. Add these three fields to each `.insert()` call:
-- Google path (~line 455): add `prompt_tokens: usage?.prompt_tokens || 0`, etc.
-- Gateway path (~line 640): add `prompt_tokens: data.usage?.prompt_tokens || 0`, etc.
-- Error paths (429, 402, generic error at lines 577, 592, 608): leave as 0 (default).
+**2. Frontend Types: `src/lib/testing/types.ts`**
+- Add `'lost-user'` to the `BuyerPersona` union type (line 22)
 
-**3. Frontend Types: `src/hooks/useTestDatabase.ts`**
-Add to the `TestReport` interface:
-```text
-prompt_tokens: number;
-completion_tokens: number;
-total_tokens: number;
-```
+**3. UI Selector: `src/components/testing/LaunchTestBatch.tsx`**
+- Add 5th entry to `PERSONAS` array:
+  - value: `"lost-user"`, label: `"Lost User (Out-of-Scope)"`, desc: `"Irrelevant queries, zero procurement context"`
 
-**4. Testing Types: `src/lib/testing/types.ts`**
-Add to `ExecutionReport` interface:
-```text
-prompt_tokens: number;
-completion_tokens: number;
-total_tokens: number;
-```
+### What This Enables
+- Test runs with this persona will generate completely off-topic inputs (recipes, weather, code requests)
+- The `sentinel-analysis` pipeline should detect these and return an appropriate rejection/error rather than hallucinating procurement analysis
+- Provides measurable data on the pipeline's domain-boundary enforcement
 
-**5. Stats Hook: `src/hooks/useTestDatabase.ts`**
-Update `useTestStats` to also select `prompt_tokens, completion_tokens, total_tokens` from `test_reports` and compute `avgTotalTokens` (average of `total_tokens` across successful reports).
-
-**6. Stats Card: `src/components/testing/TestStatsCards.tsx`**
-Add a 5th card: "Avg Tokens" showing `avgTotalTokens` with a `Zap` icon. Grid changes from `lg:grid-cols-4` to `lg:grid-cols-5`.
-
-**7. JSON Export: `src/components/testing/TestSessionLog.tsx`**
-Add `prompt_tokens`, `completion_tokens`, `total_tokens` to each report object in the `buildFeedbackJSON` function. These are explicit top-level fields (not buried in the JSONB `token_usage`).
-
-### What Stays the Same
-- The existing `token_usage` JSONB column is preserved for backward compatibility and rich metadata
-- Error-path inserts default to 0 tokens (column defaults handle this)
-- No RLS changes needed -- existing admin-only policies cover the new columns
-
-### Technical Notes
-- Both LLM providers already normalize usage to `{ prompt_tokens, completion_tokens, total_tokens }`, so extraction is trivial
-- Historical rows will have 0 in the new columns; only new runs will populate them
-- The `avgTotalTokens` metric enables tracking whether relaxing fields reduces token consumption over time
+### No Database or RLS Changes Needed
+The persona is a generation parameter only — no schema changes required.
