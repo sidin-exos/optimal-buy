@@ -1,59 +1,58 @@
 
 
-## Update Testing Pipeline Diagram
+## Token Usage Tracking for Value QA
 
-Reflect all recent workflow changes in `TestingPipelineDiagram.tsx`. No new files needed -- single file update.
+### Overview
+Add dedicated integer columns for token metrics to `test_reports`, populate them from the edge function, and surface them in the frontend stats and JSON export.
 
-### Changes to the Diagram
+### Changes
 
-**1. Trigger Node -- Add Scenario Focus**
-- Change label from "Admin / CI-CD (Iterative Run)" to "Admin / CI-CD"
-- Add sublabel: "One Scenario at a Time"
-- This reflects the new workflow where testing is scoped per scenario
+**1. Database Migration**
+Add three integer columns to `test_reports`:
+```text
+prompt_tokens   integer DEFAULT 0
+completion_tokens integer DEFAULT 0
+total_tokens    integer DEFAULT 0
+```
+These enable simple AVG/SUM aggregations without parsing the existing `token_usage` JSONB column.
 
-**2. Phase 1: Synthesis Engine -- Update Personas**
-- Replace the 3 old persona nodes with 4 new ones:
-  - `rushed-junior` / "Rushed Junior" / sublabel "Dump & Go"
-  - `methodical-manager` / "Methodical Mgr" / sublabel "Over-detailed"
-  - `cfo-finance` / "CFO / Finance" / sublabel "Financial precision"
-  - `frustrated-stakeholder` / "Frustrated User" / sublabel "Messy narratives"
+**2. Edge Function: `supabase/functions/sentinel-analysis/index.ts`**
+Both insert paths (Google AI Studio at ~line 455 and Lovable Gateway at ~line 640) already compute a `usage` object with `{ prompt_tokens, completion_tokens, total_tokens }`. Add these three fields to each `.insert()` call:
+- Google path (~line 455): add `prompt_tokens: usage?.prompt_tokens || 0`, etc.
+- Gateway path (~line 640): add `prompt_tokens: data.usage?.prompt_tokens || 0`, etc.
+- Error paths (429, 402, generic error at lines 577, 592, 608): leave as 0 (default).
 
-**3. Phase 1: Add Database-Backed Context**
-- Add a small annotation/badge near the Entropy Controller or AI Generator showing "Industry & Category from DB" (replacing the old hardcoded matrix concept)
-- This reflects the switch from `INDUSTRY_CATEGORY_COMPATIBILITY` to `useIndustryContexts` / `useProcurementCategories`
+**3. Frontend Types: `src/hooks/useTestDatabase.ts`**
+Add to the `TestReport` interface:
+```text
+prompt_tokens: number;
+completion_tokens: number;
+total_tokens: number;
+```
 
-**4. After Phase 2: Add Session Log + Export Block**
-- Add a new node between Phase 2 and Phase 3 (or alongside `test_reports`):
-  - Icon: Calendar
-  - Label: "Session Log"
-  - Sublabel: "Groups by Date"
-- Add an export node:
-  - Icon: Download
-  - Label: "Export Feedback"
-  - Sublabel: "{scenario}_{date}.json"
-  - Color: green (action output)
+**4. Testing Types: `src/lib/testing/types.ts`**
+Add to `ExecutionReport` interface:
+```text
+prompt_tokens: number;
+completion_tokens: number;
+total_tokens: number;
+```
 
-**5. Add External AI Consultation Step**
-- After the Export Feedback node, add a new step before the Refactoring Backlog:
-  - Icon: Bot or Sparkles
-  - Label: "External AI Consultation"
-  - Sublabel: "Field structure review"
-  - Color: purple (evaluation)
-- This represents step 3 of the user's workflow: consulting external AI on field adjustments
+**5. Stats Hook: `src/hooks/useTestDatabase.ts`**
+Update `useTestStats` to also select `prompt_tokens, completion_tokens, total_tokens` from `test_reports` and compute `avgTotalTokens` (average of `total_tokens` across successful reports).
 
-**6. Update Final Action Node**
-- Change sublabel from "Update GenericScenarioWizard OR Supabase DB Schema" to "Gradual: Required -> Optional -> Raw"
-- This reflects the strategic goal of increasing input flexibility
+**6. Stats Card: `src/components/testing/TestStatsCards.tsx`**
+Add a 5th card: "Avg Tokens" showing `avgTotalTokens` with a `Zap` icon. Grid changes from `lg:grid-cols-4` to `lg:grid-cols-5`.
 
-**7. Update Legend**
-- Add a green legend entry for "Feedback Export" alongside existing entries
+**7. JSON Export: `src/components/testing/TestSessionLog.tsx`**
+Add `prompt_tokens`, `completion_tokens`, `total_tokens` to each report object in the `buildFeedbackJSON` function. These are explicit top-level fields (not buried in the JSONB `token_usage`).
 
-**8. Update Description Cards (TestingPipeline.tsx)**
-- Update the Synthesis Engine card text from "3 buyer personas" to "4 strategic buyer personas"
-- These are the glass-effect cards below the diagram on the Diagram tab
+### What Stays the Same
+- The existing `token_usage` JSONB column is preserved for backward compatibility and rich metadata
+- Error-path inserts default to 0 tokens (column defaults handle this)
+- No RLS changes needed -- existing admin-only policies cover the new columns
 
-### Technical Details
-- All changes are in `src/components/architecture/TestingPipelineDiagram.tsx` and `src/pages/TestingPipeline.tsx`
-- Uses existing `ArchitectureNode`, `ArchitectureContainer`, and `ArchitectureArrow` primitives
-- New icons needed: `Calendar`, `Download` (both already available from lucide-react)
-- No database or backend changes
+### Technical Notes
+- Both LLM providers already normalize usage to `{ prompt_tokens, completion_tokens, total_tokens }`, so extraction is trivial
+- Historical rows will have 0 in the new columns; only new runs will populate them
+- The `avgTotalTokens` metric enables tracking whether relaxing fields reduces token consumption over time
