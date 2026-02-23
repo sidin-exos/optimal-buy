@@ -1,7 +1,7 @@
 import { useRef, useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toPng, toSvg } from "html-to-image";
-import { Download, Image, FileCode, ArrowLeft, Sparkles, Zap, Target } from "lucide-react";
+import { Download, Image, FileCode, ArrowLeft, Sparkles, Zap, Target, LayoutGrid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import LaunchTestBatch from "@/components/testing/LaunchTestBatch";
 import RefactoringBacklog from "@/components/testing/RefactoringBacklog";
 import TestSessionLog from "@/components/testing/TestSessionLog";
 import TestPlanOrchestrator from "@/components/testing/TestPlanOrchestrator";
+import DashboardSmokeTest from "@/components/testing/DashboardSmokeTest";
 import { useTestStats } from "@/hooks/useTestDatabase";
 import { useModelConfig } from "@/contexts/ModelConfigContext";
 import { scenarios } from "@/lib/scenarios";
@@ -183,6 +184,10 @@ const TestingPipeline = () => {
           <TabsList>
             <TabsTrigger value="diagram">Pipeline Diagram</TabsTrigger>
             <TabsTrigger value="command-center">Command Center</TabsTrigger>
+            <TabsTrigger value="dashboard-tests" className="gap-1.5">
+              <LayoutGrid className="w-3.5 h-3.5" />
+              Dashboard Tests
+            </TabsTrigger>
             <TabsTrigger value="pipeline-iq" className="gap-1.5">
               <Sparkles className="w-3.5 h-3.5" />
               Pipeline IQ
@@ -277,7 +282,12 @@ const TestingPipeline = () => {
             </div>
           </TabsContent>
 
-          {/* Tab 3: Pipeline IQ (GEA) */}
+          {/* Tab 3: Dashboard Tests */}
+          <TabsContent value="dashboard-tests" className="space-y-8">
+            <DashboardSmokeTest />
+          </TabsContent>
+
+          {/* Tab 4: Pipeline IQ (GEA) */}
           <TabsContent value="pipeline-iq" className="space-y-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Inference Accuracy Chart */}
