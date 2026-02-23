@@ -1,103 +1,134 @@
 
 
-# Dashboard Testing Pipeline Implementation
+# Make All 14 Dashboards Data-Driven with Structured AI JSON
 
 ## Summary
 
-Synchronize the `scenarioDashboardMapping` with all 29 scenarios and build a Dashboard Testing UI suite with smoke tests, coverage matrix, and Vitest contract tests.
+Create a parser for `<dashboard-data>` JSON blocks appended by the AI, update all 14 dashboard components with a `parsedData` fallback pattern, update the renderer and report page, and inject prompt instructions into the edge function.
 
-## Important: Invalid Dashboard IDs in Request
+## Files Changed (19)
 
-Two dashboard IDs from the request do not exist in `dashboardConfigs`:
-- `spend-cube` -- does not exist. For `spend-analysis-categorization`, will use the existing mapping: `['cost-waterfall', 'kraljic-quadrant', 'supplier-scorecard', 'data-quality']`
-- `compliance-check` -- does not exist. For `software-licensing`, will use: `['license-tier', 'tco-comparison', 'scenario-comparison', 'risk-matrix']` (keeping the current valid mapping)
+### 1. New: `src/lib/dashboard-data-parser.ts`
 
-All other requested mappings use valid dashboard IDs and will be applied as specified.
+Define typed interfaces for all 14 dashboard data shapes and two utility functions:
 
-## Files Changed (4)
+**Interfaces:**
 
-### 1. `src/lib/dashboard-mappings.ts` -- Fix Scenario Mapping
-
-**Remove 4 stale entries:**
-- `spend-cube-analysis` (scenario ID does not exist)
-- `license-optimization` (scenario ID does not exist)
-- `supplier-discovery` (scenario ID does not exist)
-- `project-planning` (scenario ID does not exist)
-
-**Add 9 missing scenario mappings:**
-
-| Scenario ID | Dashboards |
+| Key | Interface Fields |
 |---|---|
-| `capex-vs-opex` | tco-comparison, cost-waterfall, sensitivity-spider, decision-matrix |
-| `savings-calculation` | cost-waterfall, action-checklist, sensitivity-spider, data-quality |
-| `saas-optimization` | license-tier, cost-waterfall, action-checklist, data-quality |
-| `procurement-project-planning` | timeline-roadmap, action-checklist, risk-matrix, sensitivity-spider |
-| `pre-flight-audit` | supplier-scorecard, risk-matrix, action-checklist, data-quality |
-| `category-risk-evaluator` | risk-matrix, kraljic-quadrant, sow-analysis, action-checklist |
-| `supplier-dependency-planner` | risk-matrix, supplier-scorecard, scenario-comparison, timeline-roadmap |
-| `specification-optimizer` | decision-matrix, cost-waterfall, action-checklist, data-quality |
-| `black-swan-scenario` | risk-matrix, scenario-comparison, timeline-roadmap, action-checklist |
+| `actionChecklist` | `actions: { action: string; priority: "critical"\|"high"\|"medium"\|"low"; status: "done"\|"in-progress"\|"pending"\|"blocked"; owner?: string; dueDate?: string }[]` |
+| `decisionMatrix` | `criteria: { name: string; weight: number }[]; options: { name: string; scores: number[] }[]` |
+| `costWaterfall` | `components: { name: string; value: number; type: "cost"\|"reduction" }[]; currency?: string` |
+| `timelineRoadmap` | `phases: { name: string; startWeek: number; endWeek: number; status: "completed"\|"in-progress"\|"upcoming"; milestones?: string[] }[]; totalWeeks?: number` |
+| `kraljicQuadrant` | `items: { id: string; name: string; supplyRisk: number; businessImpact: number; spend?: string }[]` |
+| `tcoComparison` | `data: { year: string; [key: string]: number\|string }[]; options: { id: string; name: string; color: string; totalTCO: number }[]; currency?: string` |
+| `licenseTier` | `tiers: { name: string; users: number; costPerUser: number; totalCost: number; color: string; recommended?: number }[]; currency?: string` |
+| `sensitivitySpider` | `variables: { name: string; baseCase: number; lowCase: number; highCase: number; unit?: string }[]; baseCaseTotal?: number; currency?: string` |
+| `riskMatrix` | `risks: { supplier: string; impact: "high"\|"medium"\|"low"; probability: "high"\|"medium"\|"low"; category: string }[]` |
+| `scenarioComparison` | `scenarios: { id: string; name: string; color: string }[]; radarData: { metric: string; [key: string]: number\|string }[]; summary: { criteria: string; [key: string]: string }[]` |
+| `supplierScorecard` | `suppliers: { name: string; score: number; trend: "up"\|"down"\|"stable"; spend: string }[]` |
+| `sowAnalysis` | `clarity: number; sections: { name: string; status: "complete"\|"partial"\|"missing"; note: string }[]; recommendations?: string[]` |
+| `negotiationPrep` | `batna: { strength: number; description: string }; leveragePoints: { point: string; tactic: string }[]; sequence: { step: string; detail: string }[]` |
+| `dataQuality` | `fields: { field: string; status: "complete"\|"partial"\|"missing"; coverage: number }[]; limitations?: { title: string; impact: string }[]` |
 
-**Keep existing valid entries unchanged** (20 scenarios already correctly mapped).
+**Functions:**
 
-Final result: 29 scenario keys, each mapping to 2-4 valid `DashboardType` values.
+- `extractDashboardData(text: string): DashboardData | null`
+  - Regex: `/<dashboard-data>([\s\S]*?)<\/dashboard-data>/`
+  - Sanitize extracted string: strip `` ```json ``, `` ``` ``, leading/trailing whitespace
+  - `JSON.parse` in try/catch, return `null` on failure
 
-### 2. `src/components/testing/DashboardSmokeTest.tsx` -- New Component
+- `stripDashboardData(text: string): string`
+  - Removes entire `<dashboard-data>...</dashboard-data>` block from text
+  - Returns clean markdown
 
-A tabbed component with two sections:
+### 2. Update: `src/components/reports/DashboardRenderer.tsx`
 
-**Tab A: "Smoke Test"**
-- "Run All" button that iterates over all 14 `DashboardType` values
-- Each dashboard is rendered inside a React Error Boundary wrapper in a visually-hidden container
-- Measures mount time per dashboard
-- Results table: Dashboard Name | Status (green PASS / red FAIL badge) | Mount Time (ms)
-- Summary: "14/14 passed" or "X/14 failed"
+- Import `extractDashboardData` and `useMemo`
+- Call `const parsedData = useMemo(() => extractDashboardData(analysisResult || ''), [analysisResult])`
+- Pass relevant sub-object to each dashboard in the switch:
 
-**Tab B: "Coverage Matrix"**
-- Imports `scenarios` from `src/lib/scenarios.ts` (all 29)
-- Imports `dashboardConfigs` and `scenarioDashboardMapping`
-- Renders a matrix table:
-  - Rows: 29 scenarios (showing title)
-  - Columns: 14 dashboard types (abbreviated names)
-  - Cells: green dot where mapping exists, empty otherwise
-- Summary stats at top: "XX/29 Scenarios Mapped", "14/14 Dashboards Used", "Total Mappings: YY"
-- Highlights any unmapped scenarios in amber
-
-Uses Shadcn `Tabs`, `Card`, `Badge`, `Table`, `Button` components. Clean, professional styling consistent with existing Testing Pipeline page.
-
-### 3. `src/pages/TestingPipeline.tsx` -- Add Tab
-
-- Import `DashboardSmokeTest` component
-- Add `LayoutGrid` icon from Lucide
-- Add a new `TabsTrigger` for "Dashboard Tests" with the icon
-- Add corresponding `TabsContent` rendering `<DashboardSmokeTest />`
-- Placed after the existing "Pipeline IQ" tab
-
-### 4. `src/test/dashboard-mappings.test.ts` -- Vitest Contract Test
-
-Three tests:
-
-```text
-Test 1: "every scenario ID has a dashboard mapping"
-  - Import scenarios array, extract all IDs
-  - Assert each ID exists as a key in scenarioDashboardMapping
-
-Test 2: "each mapping has 2-4 dashboards"
-  - For each entry in scenarioDashboardMapping
-  - Assert array length >= 2 and <= 4
-  - Assert every dashboard ID exists in dashboardConfigs
-
-Test 3: "no orphaned keys in mapping"
-  - For each key in scenarioDashboardMapping
-  - Assert it exists as a scenario ID in scenarios array
+```
+case "action-checklist": return <ActionChecklistDashboard parsedData={parsedData?.actionChecklist} />
+case "risk-matrix":      return <RiskMatrixDashboard parsedData={parsedData?.riskMatrix} />
+// ... etc for all 14
 ```
 
-Pure data contract tests -- no rendering, no DOM, runs in milliseconds.
+### 3. Update: All 14 Dashboard Components
 
-## Technical Notes
+Each component gets a new optional `parsedData` prop. The pattern for each:
 
-- The Error Boundary for smoke tests is a small class component defined inline in `DashboardSmokeTest.tsx` -- catches render errors and reports them as FAIL results
-- Dashboard components all accept optional props and render with defaults, so mounting with no props is safe
-- The coverage matrix uses `scenarios` as the source of truth for row count, ensuring any future scenario additions are immediately visible as gaps
-- No database or edge function changes required
+**ActionChecklistDashboard** -- add `parsedData?: ActionChecklistData` to props. Map parsed actions (assigning sequential IDs) or fall back to `defaultActions`.
+
+**DecisionMatrixDashboard** -- add `parsedData?: DecisionMatrixData`. Use `parsedData.criteria` and `parsedData.options` (assigning sequential IDs) or fall back to defaults.
+
+**CostWaterfallDashboard** -- add `parsedData?: CostWaterfallData`. Use `parsedData.components` or default; use `parsedData.currency` or `"$"`.
+
+**TimelineRoadmapDashboard** -- add `parsedData?: TimelineRoadmapData`. Use `parsedData.phases` (assigning sequential IDs) or default.
+
+**KraljicQuadrantDashboard** -- add `parsedData?: KraljicData`. Use `parsedData.items` or default.
+
+**TCOComparisonDashboard** -- add `parsedData?: TCOComparisonData`. Use `parsedData.data`, `parsedData.options`, or defaults.
+
+**LicenseTierDashboard** -- add `parsedData?: LicenseTierData`. Use `parsedData.tiers` or default.
+
+**SensitivitySpiderDashboard** -- add `parsedData?: SensitivityData`. Use `parsedData.variables`, `parsedData.baseCaseTotal` or defaults.
+
+**RiskMatrixDashboard** -- add `parsedData?: RiskMatrixData`. Map `parsedData.risks` into the existing array shape (with sequential IDs) or use hardcoded data.
+
+**ScenarioComparisonDashboard** -- add `parsedData?: ScenarioComparisonData`. Use parsed scenarios/radarData/summary or defaults.
+
+**SupplierPerformanceDashboard** -- add `parsedData?: SupplierScorecardData`. Use `parsedData.suppliers` or default.
+
+**SOWAnalysisDashboard** -- add `parsedData?: SOWAnalysisData`. Use parsed clarity/sections/recommendations or defaults.
+
+**NegotiationPrepDashboard** -- add `parsedData?: NegotiationPrepData`. Use parsed batna/leveragePoints/sequence or defaults.
+
+**DataQualityDashboard** -- add `parsedData?: DataQualityData`. Use parsed fields/limitations or defaults.
+
+**Zero breaking changes** -- if `parsedData` is undefined, every dashboard renders its hardcoded defaults exactly as before.
+
+### 4. Update: `src/pages/GeneratedReport.tsx`
+
+- Import `stripDashboardData` from `@/lib/dashboard-data-parser`
+- After line 115 (`const safeAnalysisResult = analysisResult ?? '';`), add:
+  ```typescript
+  const displayAnalysis = stripDashboardData(safeAnalysisResult);
+  ```
+- Replace `safeAnalysisResult` with `displayAnalysis` in the "Detailed Analysis" section (lines 299-340) where markdown is rendered
+- Keep `safeAnalysisResult` (with the JSON block) passed to `DashboardRenderer` and `ReportExportButtons` so dashboards can extract their data
+
+### 5. Update: `supabase/functions/sentinel-analysis/index.ts`
+
+**In `buildServerGroundedPrompts` system prompt (line 220-232):**
+
+After rule 8, add rule 9:
+
+```
+9. At the VERY END of your response, append a <dashboard-data> XML block containing valid JSON with structured data for relevant dashboards. Example:
+<dashboard-data>{"actionChecklist":{"actions":[{"action":"...","priority":"high","status":"pending","owner":"..."}]},"riskMatrix":{"risks":[{"supplier":"...","impact":"high","probability":"medium","category":"..."}]}}</dashboard-data>
+Only include dashboard keys relevant to the scenario analysis. Use REAL values from your analysis. Do NOT wrap the JSON in markdown code blocks inside the XML tags.
+```
+
+**In `SYNTHESIZER_SYSTEM_PROMPT` (line 95-113):**
+
+After the existing instructions, add:
+
+```
+IMPORTANT: At the VERY END of your final output, you MUST append a <dashboard-data> XML block containing valid JSON with structured visualization data extracted from your analysis. Do NOT wrap the JSON in markdown code blocks. Include only dashboard keys relevant to the scenario.
+```
+
+## What Does NOT Change
+
+- Dashboard showcase page (`/reports`) -- continues using hardcoded data as gallery
+- PDF dashboard visuals -- separate system, untouched
+- DashboardSmokeTest -- tests with no data (fallback path)
+- `dashboard-mappings.ts` -- already updated in previous step
+- The AI markdown output remains the primary analysis; the JSON block is additive
+
+## Risk Mitigation
+
+- If AI fails to produce valid JSON or the block is malformed, parser returns `null` and all dashboards fall back to hardcoded defaults
+- Sanitization strips markdown code block artifacts (`\`\`\`json`, `\`\`\``) that LLMs commonly inject inside custom XML tags
+- Zero breaking changes to any existing functionality
 
