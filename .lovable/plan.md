@@ -1,92 +1,69 @@
 
 
-# Testing Pipeline: Multi-Cycle Awareness Upgrade
+# Update Test Data Generator Schemas
 
 ## Summary
-Add latency benchmarks, prompt leakage detection, cycle-type badges, and adaptive delays to the testing pipeline -- with shared utilities exported from `graph.ts` (no DRY violations).
+Fix the data contract mismatch between frontend scenarios and the `generate-test-data` Edge Function by updating 3 areas: `SCENARIO_SCHEMAS`, `TRICK_LIBRARY` target fields, and removing all `mainFocus` references from prompts.
 
-## Files Changed (5)
+## Changes (1 file)
 
-### 1. `src/lib/ai/graph.ts` -- Export Shared Utilities
+### `supabase/functions/generate-test-data/index.ts`
 
-Add after the existing `isDeepAnalyticsScenario` function (line ~47):
+**1. Replace `SCENARIO_SCHEMAS` (lines 155-322)**
+
+Replace the entire constant with the 29-scenario mapping that mirrors `src/lib/scenarios.ts`:
 
 ```typescript
-export const LEAKAGE_MARKERS = ['[PASS]', '[FAIL]', '<draft>', '</draft>', '<critique>', '</critique>'];
-
-export function detectPromptLeakage(content: string): boolean {
-  return LEAKAGE_MARKERS.some(marker => content.includes(marker));
-}
-
-export const LATENCY_BENCHMARKS = {
-  multiCycle: { warning: 45000, fail: 60000 },
-  standard:   { warning: 15000, fail: 25000 },
-} as const;
+const SCENARIO_SCHEMAS: Record<string, ScenarioSchema> = {
+  'make-vs-buy': { required: ['industryContext', 'projectBrief'], optional: ['makeCosts', 'buyCosts', 'strategicFactors'] },
+  'cost-breakdown': { required: ['industryContext', 'productDescription', 'currentCosts'], optional: ['marketFactors'] },
+  // ... all 29 scenarios as specified in the user's request
+};
 ```
 
-No other changes to this file.
+**2. Update `TRICK_LIBRARY` target fields (lines 330-636)**
 
-### 2. `src/components/testing/TestPlanOrchestrator.tsx` -- Execution Logic + Results UI
+Remap stale field IDs to match the new schema:
 
-**Imports:** Add `isDeepAnalyticsScenario`, `detectPromptLeakage`, `LATENCY_BENCHMARKS` from `@/lib/ai/graph`. Add `AlertTriangle` from lucide.
+| Scenario | Old Field | New Field |
+|---|---|---|
+| supplier-review | `crisisSupport` | `incidentLog` |
+| supplier-review | `financialStability` | `industryContext` (keep) |
+| supplier-review | `strategicImportance` | `industryContext` (keep) |
+| supplier-review | `socialResponsibility` | `industryContext` (keep) |
+| software-licensing | `contractLength` | `commercialTerms` |
+| software-licensing | `perUserMonthly` | `commercialTerms` |
+| software-licensing | `powerUsers`, `regularUsers`, `occasionalUsers` | `userMetrics` |
+| tco-analysis | `purchasePrice` | `capexBreakdown` |
+| tco-analysis | `annualMaintenance` | `opexBreakdown` |
+| tco-analysis | `vendorLockInRisk` | `riskFactors` |
+| tco-analysis | `residualValue` | `riskFactors` |
+| negotiation-preparation | `marketAlternatives` | `leverageContext` |
+| negotiation-preparation | `switchingCost` | `leverageContext` |
+| negotiation-preparation | `knownConstraints` | `timeline` |
+| risk-assessment | `geopoliticalRisk` | `currentSituation` |
+| risk-assessment | `businessCriticality` | `riskTolerance` |
+| risk-assessment | `recoveryTime` | `riskTolerance` |
+| risk-assessment | `supplierFinancialHealth` | `currentSituation` |
+| make-vs-buy | `knowledgeRetentionRisk` | `strategicFactors` |
+| make-vs-buy | `managementTime` | `makeCosts` |
+| make-vs-buy | `strategicImportance` | `strategicFactors` |
+| make-vs-buy | `peakLoadCapacity` | `projectBrief` |
+| disruption-management | `altSuppliers`, `altProducts` | `alternativesContext` |
+| disruption-management | `switchingTime`, `stockDays` | `crisisDescription` |
+| disruption-management | `lostRevenuePerDay` | `impactAssessment` |
 
-**Extend `ExecutionResult`:**
-```typescript
-interface ExecutionResult {
-  index: number;
-  status: "success" | "error";
-  error?: string;
-  isMultiCycle?: boolean;
-  promptLeakage?: boolean;
-  processingTimeMs?: number;
-  latencyStatus?: "ok" | "warning" | "fail";
-}
-```
+**3. Remove `mainFocus` from prompts**
 
-**Update execution loop** (`handleRunPlan`, inside the success branch ~line 162-163):
-- Determine `isMultiCycle` via `isDeepAnalyticsScenario(item.scenarioId)`.
-- Extract `processingTimeMs` from `data.processing_time_ms`.
-- Compute `latencyStatus` using the appropriate benchmark thresholds.
-- Run `detectPromptLeakage(data.content)` -- if true, force status to `"error"` with message `"CRITICAL: Auditor prompt leakage detected in final output."` and set `promptLeakage: true`.
-- Store all new fields in the result object.
+- **Line 1023** (handleGenerateMode system prompt): Remove rule #3 that says `"mainFocus" field MUST describe the user's primary objective...`
+- **Line 1029**: Remove the line `IMPORTANT: "mainFocus" is the user's stated priority. It may be DIFFERENT from the hidden trick.`
 
-**Update rate-limit delay** (~line 173): Change from fixed `1000ms` to `isDeepAnalyticsScenario(item.scenarioId) ? 3000 : 1000`.
+These are the only two `mainFocus` references in prompt text (the schema references are already handled by the full replacement in step 1).
 
-**Update Results Summary UI** (~lines 274-298):
-- Add cycle-type badge per result row: purple `"Multi-Cycle (3)"` or gray `"Single-Pass (1)"`.
-- Add latency dot indicator: green (ok), yellow (warning), red (fail).
-- If `promptLeakage` is true, show a red `"LEAKAGE"` badge.
-
-### 3. `src/components/testing/LaunchTestBatch.tsx` -- Single Test Leakage Check
-
-**Imports:** Add `isDeepAnalyticsScenario`, `detectPromptLeakage` from `@/lib/ai/graph`. Add `Badge` from ui.
-
-**Update success branch** (~lines 127-133):
-- After analysis succeeds, check `detectPromptLeakage(analysisResult?.content || "")`.
-- If leakage detected: show destructive toast `"CRITICAL: Auditor prompt leakage detected in final output."`.
-- Add cycle type to success toast: `"Multi-Cycle (3) | Gen score: X | Tokens: Y"` or `"Single-Pass | Gen score: X | Tokens: Y"`.
-
-### 4. `src/components/testing/TestSessionLog.tsx` -- Multi-Cycle Count Badge
-
-**Imports:** Add `isDeepAnalyticsScenario` from `@/lib/ai/graph`.
-
-**Update date group row** (~line 127-141): After the existing prompts/success/fail badges, add a small purple badge showing how many prompts in the group are multi-cycle. Example: `"2x Multi-Cycle"`. Only rendered if count > 0.
-
-### 5. `src/components/testing/TestStatsCards.tsx` -- Benchmark Context Label
-
-**Imports:** Add `isDeepAnalyticsScenario` from `@/lib/ai/graph`.
-
-**Update "Avg Processing" StatCard** (~line 49): Below the value, conditionally render benchmark context:
-- If `scenarioType` is provided and `isDeepAnalyticsScenario(scenarioType)`: show `"(benchmark: 45s)"`.
-- Otherwise if `scenarioType` is provided: show `"(benchmark: 15s)"`.
-- If no scenario selected: no benchmark shown.
-
-This is done by adding a small `<span>` beneath the StatCard value, not modifying the StatCard component itself.
-
-## Technical Notes
-
-- **Zero duplication**: `detectPromptLeakage`, `LEAKAGE_MARKERS`, and `LATENCY_BENCHMARKS` are exported once from `graph.ts` and imported everywhere.
-- **No database changes** -- all frontend-only, reading data already returned by the edge function.
-- **Backward compatible** -- `ExecutionResult` new fields are all optional; persisted localStorage results from previous runs still deserialize fine.
-- **Rate-limit adjustment**: 3s delay between multi-cycle tests (3 internal LLM calls each) vs 1s for standard.
+## What Does NOT Change
+- `src/lib/scenarios.ts` -- source of truth, untouched
+- `src/lib/test-data-factory.ts` -- static fallback, already correct
+- Draft mode handler -- no `mainFocus` in its prompts
+- Messy mode handler -- no `mainFocus` in its prompts
+- Full mode handler -- uses schema dynamically, fixed by step 1
 
