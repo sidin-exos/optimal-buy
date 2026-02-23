@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Settings, Bell, LogIn, User } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Settings, LogIn, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NavLink } from "@/components/NavLink";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,6 +8,7 @@ import exosLogo from "@/assets/logo-concept-layers.png";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 const Header = () => {
+  const navigate = useNavigate();
   const [user, setUser] = useState<SupabaseUser | null>(null);
 
   useEffect(() => {
@@ -84,11 +86,7 @@ const Header = () => {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary" />
-          </Button>
-          <Button variant="ghost" size="icon" aria-label="Settings">
+          <Button variant="ghost" size="icon" aria-label="Settings" onClick={() => navigate("/account")}>
             <Settings className="w-5 h-5" />
           </Button>
           

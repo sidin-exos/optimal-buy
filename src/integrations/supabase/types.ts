@@ -236,6 +236,30 @@ export type Database = {
         }
         Relationships: []
       }
+      scenario_feedback: {
+        Row: {
+          created_at: string
+          feedback_text: string | null
+          id: string
+          rating: number
+          scenario_id: string
+        }
+        Insert: {
+          created_at?: string
+          feedback_text?: string | null
+          id?: string
+          rating: number
+          scenario_id: string
+        }
+        Update: {
+          created_at?: string
+          feedback_text?: string | null
+          id?: string
+          rating?: number
+          scenario_id?: string
+        }
+        Relationships: []
+      }
       shared_reports: {
         Row: {
           created_at: string
