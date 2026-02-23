@@ -1,69 +1,103 @@
 
 
-# Update Test Data Generator Schemas
+# Dashboard Testing Pipeline Implementation
 
 ## Summary
-Fix the data contract mismatch between frontend scenarios and the `generate-test-data` Edge Function by updating 3 areas: `SCENARIO_SCHEMAS`, `TRICK_LIBRARY` target fields, and removing all `mainFocus` references from prompts.
 
-## Changes (1 file)
+Synchronize the `scenarioDashboardMapping` with all 29 scenarios and build a Dashboard Testing UI suite with smoke tests, coverage matrix, and Vitest contract tests.
 
-### `supabase/functions/generate-test-data/index.ts`
+## Important: Invalid Dashboard IDs in Request
 
-**1. Replace `SCENARIO_SCHEMAS` (lines 155-322)**
+Two dashboard IDs from the request do not exist in `dashboardConfigs`:
+- `spend-cube` -- does not exist. For `spend-analysis-categorization`, will use the existing mapping: `['cost-waterfall', 'kraljic-quadrant', 'supplier-scorecard', 'data-quality']`
+- `compliance-check` -- does not exist. For `software-licensing`, will use: `['license-tier', 'tco-comparison', 'scenario-comparison', 'risk-matrix']` (keeping the current valid mapping)
 
-Replace the entire constant with the 29-scenario mapping that mirrors `src/lib/scenarios.ts`:
+All other requested mappings use valid dashboard IDs and will be applied as specified.
 
-```typescript
-const SCENARIO_SCHEMAS: Record<string, ScenarioSchema> = {
-  'make-vs-buy': { required: ['industryContext', 'projectBrief'], optional: ['makeCosts', 'buyCosts', 'strategicFactors'] },
-  'cost-breakdown': { required: ['industryContext', 'productDescription', 'currentCosts'], optional: ['marketFactors'] },
-  // ... all 29 scenarios as specified in the user's request
-};
+## Files Changed (4)
+
+### 1. `src/lib/dashboard-mappings.ts` -- Fix Scenario Mapping
+
+**Remove 4 stale entries:**
+- `spend-cube-analysis` (scenario ID does not exist)
+- `license-optimization` (scenario ID does not exist)
+- `supplier-discovery` (scenario ID does not exist)
+- `project-planning` (scenario ID does not exist)
+
+**Add 9 missing scenario mappings:**
+
+| Scenario ID | Dashboards |
+|---|---|
+| `capex-vs-opex` | tco-comparison, cost-waterfall, sensitivity-spider, decision-matrix |
+| `savings-calculation` | cost-waterfall, action-checklist, sensitivity-spider, data-quality |
+| `saas-optimization` | license-tier, cost-waterfall, action-checklist, data-quality |
+| `procurement-project-planning` | timeline-roadmap, action-checklist, risk-matrix, sensitivity-spider |
+| `pre-flight-audit` | supplier-scorecard, risk-matrix, action-checklist, data-quality |
+| `category-risk-evaluator` | risk-matrix, kraljic-quadrant, sow-analysis, action-checklist |
+| `supplier-dependency-planner` | risk-matrix, supplier-scorecard, scenario-comparison, timeline-roadmap |
+| `specification-optimizer` | decision-matrix, cost-waterfall, action-checklist, data-quality |
+| `black-swan-scenario` | risk-matrix, scenario-comparison, timeline-roadmap, action-checklist |
+
+**Keep existing valid entries unchanged** (20 scenarios already correctly mapped).
+
+Final result: 29 scenario keys, each mapping to 2-4 valid `DashboardType` values.
+
+### 2. `src/components/testing/DashboardSmokeTest.tsx` -- New Component
+
+A tabbed component with two sections:
+
+**Tab A: "Smoke Test"**
+- "Run All" button that iterates over all 14 `DashboardType` values
+- Each dashboard is rendered inside a React Error Boundary wrapper in a visually-hidden container
+- Measures mount time per dashboard
+- Results table: Dashboard Name | Status (green PASS / red FAIL badge) | Mount Time (ms)
+- Summary: "14/14 passed" or "X/14 failed"
+
+**Tab B: "Coverage Matrix"**
+- Imports `scenarios` from `src/lib/scenarios.ts` (all 29)
+- Imports `dashboardConfigs` and `scenarioDashboardMapping`
+- Renders a matrix table:
+  - Rows: 29 scenarios (showing title)
+  - Columns: 14 dashboard types (abbreviated names)
+  - Cells: green dot where mapping exists, empty otherwise
+- Summary stats at top: "XX/29 Scenarios Mapped", "14/14 Dashboards Used", "Total Mappings: YY"
+- Highlights any unmapped scenarios in amber
+
+Uses Shadcn `Tabs`, `Card`, `Badge`, `Table`, `Button` components. Clean, professional styling consistent with existing Testing Pipeline page.
+
+### 3. `src/pages/TestingPipeline.tsx` -- Add Tab
+
+- Import `DashboardSmokeTest` component
+- Add `LayoutGrid` icon from Lucide
+- Add a new `TabsTrigger` for "Dashboard Tests" with the icon
+- Add corresponding `TabsContent` rendering `<DashboardSmokeTest />`
+- Placed after the existing "Pipeline IQ" tab
+
+### 4. `src/test/dashboard-mappings.test.ts` -- Vitest Contract Test
+
+Three tests:
+
+```text
+Test 1: "every scenario ID has a dashboard mapping"
+  - Import scenarios array, extract all IDs
+  - Assert each ID exists as a key in scenarioDashboardMapping
+
+Test 2: "each mapping has 2-4 dashboards"
+  - For each entry in scenarioDashboardMapping
+  - Assert array length >= 2 and <= 4
+  - Assert every dashboard ID exists in dashboardConfigs
+
+Test 3: "no orphaned keys in mapping"
+  - For each key in scenarioDashboardMapping
+  - Assert it exists as a scenario ID in scenarios array
 ```
 
-**2. Update `TRICK_LIBRARY` target fields (lines 330-636)**
+Pure data contract tests -- no rendering, no DOM, runs in milliseconds.
 
-Remap stale field IDs to match the new schema:
+## Technical Notes
 
-| Scenario | Old Field | New Field |
-|---|---|---|
-| supplier-review | `crisisSupport` | `incidentLog` |
-| supplier-review | `financialStability` | `industryContext` (keep) |
-| supplier-review | `strategicImportance` | `industryContext` (keep) |
-| supplier-review | `socialResponsibility` | `industryContext` (keep) |
-| software-licensing | `contractLength` | `commercialTerms` |
-| software-licensing | `perUserMonthly` | `commercialTerms` |
-| software-licensing | `powerUsers`, `regularUsers`, `occasionalUsers` | `userMetrics` |
-| tco-analysis | `purchasePrice` | `capexBreakdown` |
-| tco-analysis | `annualMaintenance` | `opexBreakdown` |
-| tco-analysis | `vendorLockInRisk` | `riskFactors` |
-| tco-analysis | `residualValue` | `riskFactors` |
-| negotiation-preparation | `marketAlternatives` | `leverageContext` |
-| negotiation-preparation | `switchingCost` | `leverageContext` |
-| negotiation-preparation | `knownConstraints` | `timeline` |
-| risk-assessment | `geopoliticalRisk` | `currentSituation` |
-| risk-assessment | `businessCriticality` | `riskTolerance` |
-| risk-assessment | `recoveryTime` | `riskTolerance` |
-| risk-assessment | `supplierFinancialHealth` | `currentSituation` |
-| make-vs-buy | `knowledgeRetentionRisk` | `strategicFactors` |
-| make-vs-buy | `managementTime` | `makeCosts` |
-| make-vs-buy | `strategicImportance` | `strategicFactors` |
-| make-vs-buy | `peakLoadCapacity` | `projectBrief` |
-| disruption-management | `altSuppliers`, `altProducts` | `alternativesContext` |
-| disruption-management | `switchingTime`, `stockDays` | `crisisDescription` |
-| disruption-management | `lostRevenuePerDay` | `impactAssessment` |
-
-**3. Remove `mainFocus` from prompts**
-
-- **Line 1023** (handleGenerateMode system prompt): Remove rule #3 that says `"mainFocus" field MUST describe the user's primary objective...`
-- **Line 1029**: Remove the line `IMPORTANT: "mainFocus" is the user's stated priority. It may be DIFFERENT from the hidden trick.`
-
-These are the only two `mainFocus` references in prompt text (the schema references are already handled by the full replacement in step 1).
-
-## What Does NOT Change
-- `src/lib/scenarios.ts` -- source of truth, untouched
-- `src/lib/test-data-factory.ts` -- static fallback, already correct
-- Draft mode handler -- no `mainFocus` in its prompts
-- Messy mode handler -- no `mainFocus` in its prompts
-- Full mode handler -- uses schema dynamically, fixed by step 1
+- The Error Boundary for smoke tests is a small class component defined inline in `DashboardSmokeTest.tsx` -- catches render errors and reports them as FAIL results
+- Dashboard components all accept optional props and render with defaults, so mounting with no props is safe
+- The coverage matrix uses `scenarios` as the source of truth for row count, ensuring any future scenario additions are immediately visible as gaps
+- No database or edge function changes required
 
