@@ -343,9 +343,19 @@ const GenericScenarioWizard = ({ scenario }: GenericScenarioWizardProps) => {
     }
   };
 
-  const handleFeedbackSubmit = (rating: number, feedback: string) => {
-    console.log("Feedback submitted:", { rating, feedback, scenario: scenario.id });
-    // Could be stored in database in future
+  const handleFeedbackSubmit = async (rating: number, feedback: string) => {
+    try {
+      const { error } = await supabase.from("scenario_feedback" as any).insert({
+        scenario_id: scenario.id,
+        rating,
+        feedback_text: feedback || null,
+      });
+      if (error) throw error;
+      toast.success("Thank you for your feedback!");
+    } catch (err: any) {
+      console.error("Feedback save failed:", err);
+      toast.error("Could not save feedback. Please try again.");
+    }
   };
 
   const handleGenerateReport = () => {
