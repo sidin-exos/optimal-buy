@@ -99,12 +99,12 @@ const ArchitectureDiagram = () => {
           </NavLink>
 
           <h1 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">
-            EXOS Architecture Diagram
+            EXOS Architecture Diagram — v2.0
           </h1>
           <p className="text-muted-foreground text-lg max-w-2xl">
-            The complete data flow architecture of EXOS Procurement
-            Intelligence, showing the privacy-preserving pipeline with Cloud AI
-            integration.
+            Server-side AI pipeline architecture. Grounding, inference, and
+            validation run on EXOS Cloud (Edge Functions + Postgres). Only
+            anonymization and output rendering happen in the browser.
           </p>
         </div>
 
@@ -137,33 +137,27 @@ const ArchitectureDiagram = () => {
           </div>
         </div>
 
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="glass-effect rounded-xl p-4">
-            <div className="text-primary font-semibold mb-2">📥 User Input</div>
+            <div className="text-primary font-semibold mb-2">🛡️ Client Pre-Flight</div>
             <p className="text-sm text-muted-foreground">
-              Scenario data, documents, and supplier information enter the
-              pipeline.
+              User data enters via 3-Block Meta-Pattern UI. PII is anonymized
+              by the Sentinel before leaving the browser.
             </p>
           </div>
           <div className="glass-effect rounded-xl p-4">
-            <div className="text-primary font-semibold mb-2">
-              🛡️ EXOS Intelligence
-            </div>
+            <div className="text-primary font-semibold mb-2">☁️ EXOS Cloud</div>
             <p className="text-sm text-muted-foreground">
-              5-stage pipeline: Anonymize → Ground → Market Intel → Validate →
-              Restore.
+              Server-side grounding from Postgres, AI inference (single-pass or
+              multi-cycle Chain-of-Experts), validation against DB rules, and
+              LangSmith tracing.
             </p>
           </div>
           <div className="glass-effect rounded-xl p-4">
-            <div className="text-primary font-semibold mb-2">☁️ Cloud AI</div>
+            <div className="text-primary font-semibold mb-2">📊 Client Post-Flight</div>
             <p className="text-sm text-muted-foreground">
-              Expert agents: Auditor, Optimizer, Strategist, and Validator.
-            </p>
-          </div>
-          <div className="glass-effect rounded-xl p-4">
-            <div className="text-primary font-semibold mb-2">📊 Output</div>
-            <p className="text-sm text-muted-foreground">
-              Executive reports, interactive dashboards, and action roadmaps.
+              Tokens restored to real PII, integrity verified, results rendered
+              as dashboards, PDF, Excel, Jira exports, or 128-bit shareable links.
             </p>
           </div>
         </div>
