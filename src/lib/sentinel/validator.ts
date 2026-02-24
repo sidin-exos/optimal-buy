@@ -2,59 +2,18 @@
  * EXOS Sentinel - Reasoning Integrity Validator
  * 
  * Component 5: The Internal Auditor
- * Validates AI responses against golden cases and checks for
- * hallucinations, inconsistencies, and unsafe content.
+ * Validates AI responses for hallucinations, inconsistencies,
+ * and unsafe content using regex-based structural checks.
+ * 
+ * NOTE: Golden case matching is a Phase 2 feature that will use
+ * DB-backed golden cases. Currently returns empty matches.
  */
 
 import type {
   ValidationResult,
   ValidationIssue,
   GoldenCaseMatch,
-  GoldenCase,
 } from './types';
-
-/**
- * Mock golden cases for validation
- * In production, these would be stored in a database and continuously updated
- */
-const MOCK_GOLDEN_CASES: GoldenCase[] = [
-  {
-    id: 'gc_001',
-    scenarioType: 'consolidation',
-    inputPattern: 'consolidat.*supplier.*volume',
-    expectedOutputPattern: '(?=.*savings)(?=.*risk)(?=.*recommendation)',
-    constraints: [
-      'Must include quantified savings estimate',
-      'Must mention potential risks',
-      'Must preserve all masked tokens',
-    ],
-    createdAt: '2024-01-15',
-  },
-  {
-    id: 'gc_002',
-    scenarioType: 'negotiation',
-    inputPattern: 'negotiat.*contract.*price',
-    expectedOutputPattern: '(?=.*leverage)(?=.*strategy)(?=.*timeline)',
-    constraints: [
-      'Must suggest specific negotiation tactics',
-      'Must reference market conditions',
-      'Must include implementation timeline',
-    ],
-    createdAt: '2024-01-20',
-  },
-  {
-    id: 'gc_003',
-    scenarioType: 'risk_assessment',
-    inputPattern: 'risk.*supplier.*assess',
-    expectedOutputPattern: '(?=.*probability)(?=.*impact)(?=.*mitigation)',
-    constraints: [
-      'Must quantify risk levels',
-      'Must suggest mitigation strategies',
-      'Must not fabricate supplier details',
-    ],
-    createdAt: '2024-02-01',
-  },
-];
 
 /**
  * Patterns that indicate potential hallucination
@@ -86,9 +45,6 @@ function checkTokenIntegrity(
   
   for (const token of originalTokens) {
     if (!response.includes(token)) {
-      // Check if token was potentially revealed
-      const tokenType = token.match(/\[([A-Z_]+)_/)?.[1];
-      
       issues.push({
         type: 'inconsistency',
         severity: 'high',
@@ -162,65 +118,22 @@ function checkForUnsafeContent(response: string): ValidationIssue[] {
 }
 
 /**
- * Match response against golden cases
+ * Match response against golden cases.
+ * TODO (Phase 2): Integrate with DB-backed golden cases table.
+ * Currently returns empty array — confidence scoring relies
+ * entirely on structural validation checks.
  */
 function matchGoldenCases(
-  scenarioType: string,
-  input: string,
-  response: string
+  _scenarioType: string,
+  _input: string,
+  _response: string
 ): GoldenCaseMatch[] {
-  const matches: GoldenCaseMatch[] = [];
-  
-  for (const goldenCase of MOCK_GOLDEN_CASES) {
-    // Check if this golden case applies to the input
-    const inputPattern = new RegExp(goldenCase.inputPattern, 'gi');
-    if (!inputPattern.test(input) && goldenCase.scenarioType !== scenarioType) {
-      continue;
-    }
-    
-    // Check if response matches expected pattern
-    const outputPattern = new RegExp(goldenCase.expectedOutputPattern, 'gi');
-    const matches_output = outputPattern.test(response);
-    
-    // Check constraints
-    const constraintResults = goldenCase.constraints.map(constraint => {
-      // Simple keyword check for demonstration
-      const keywords = constraint.toLowerCase().split(/\s+/).filter(w => w.length > 4);
-      const found = keywords.some(kw => response.toLowerCase().includes(kw));
-      return { constraint, met: found };
-    });
-    
-    const constraintsMet = constraintResults.filter(c => c.met).length;
-    const totalConstraints = constraintResults.length;
-    
-    let verdict: 'match' | 'partial' | 'mismatch';
-    let similarity: number;
-    
-    if (matches_output && constraintsMet === totalConstraints) {
-      verdict = 'match';
-      similarity = 1.0;
-    } else if (matches_output || constraintsMet > 0) {
-      verdict = 'partial';
-      similarity = 0.5 + (constraintsMet / totalConstraints) * 0.4;
-    } else {
-      verdict = 'mismatch';
-      similarity = constraintsMet / totalConstraints * 0.4;
-    }
-    
-    matches.push({
-      caseId: goldenCase.id,
-      similarity,
-      expectedPattern: goldenCase.expectedOutputPattern,
-      actualPattern: response.slice(0, 200) + '...', // Truncate for logging
-      verdict,
-    });
-  }
-  
-  return matches;
+  return [];
 }
 
 /**
- * Calculate overall confidence score
+ * Calculate overall confidence score.
+ * When no golden cases exist, score relies 100% on structural validation.
  */
 function calculateConfidenceScore(
   issues: ValidationIssue[],
@@ -228,7 +141,7 @@ function calculateConfidenceScore(
 ): number {
   let score = 1.0;
   
-  // Deduct for issues
+  // Deduct for issues found by structural validators
   for (const issue of issues) {
     switch (issue.severity) {
       case 'critical':
@@ -246,23 +159,18 @@ function calculateConfidenceScore(
     }
   }
   
-  // Adjust based on golden case matches
+  // Only blend in golden case similarity when matches exist
   if (goldenCaseMatches.length > 0) {
     const avgSimilarity = goldenCaseMatches.reduce((sum, m) => sum + m.similarity, 0) / goldenCaseMatches.length;
     score = score * 0.7 + avgSimilarity * 0.3;
   }
+  // else: score relies entirely on structural validation — no penalty
   
   return Math.max(0, Math.min(1, score));
 }
 
 /**
  * Validate AI response for quality and safety
- * 
- * @param response - The AI-generated response to validate
- * @param originalInput - The original (anonymized) input
- * @param scenarioType - The type of scenario being analyzed
- * @param maskedTokens - List of masked tokens that should be preserved
- * @returns ValidationResult with pass/fail status and detailed issues
  */
 export function validateResponse(
   response: string,
@@ -272,12 +180,12 @@ export function validateResponse(
 ): ValidationResult {
   const issues: ValidationIssue[] = [];
   
-  // Run all validation checks
+  // Run all structural validation checks
   issues.push(...checkTokenIntegrity(maskedTokens, response));
   issues.push(...checkForHallucinations(response));
   issues.push(...checkForUnsafeContent(response));
   
-  // Check against golden cases
+  // Check against golden cases (empty until Phase 2)
   const goldenCaseMatches = matchGoldenCases(scenarioType, originalInput, response);
   
   // Calculate confidence score
