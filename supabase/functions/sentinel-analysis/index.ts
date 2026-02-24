@@ -205,19 +205,45 @@ function extractShadowLog(content: string): { cleanContent: string; shadowLog: R
   }
 }
 
+interface MarketInsightRow {
+  key_trends: string[] | null;
+  risk_signals: string[] | null;
+  opportunities: string[] | null;
+}
+
+function buildMarketIntelligenceXML(insight: MarketInsightRow): string {
+  const trends = (insight.key_trends || []).map(t => `      <trend>${escapeXML(t)}</trend>`).join('\n');
+  const risks = (insight.risk_signals || []).map(r => `      <signal>${escapeXML(r)}</signal>`).join('\n');
+  const opps = (insight.opportunities || []).map(o => `      <opportunity>${escapeXML(o)}</opportunity>`).join('\n');
+  return `<market-intelligence>
+    <description>Current market intelligence from verified sources. Use these to ground recommendations in real market conditions.</description>
+    <key-trends>
+${trends}
+    </key-trends>
+    <risk-signals>
+${risks}
+    </risk-signals>
+    <opportunities>
+${opps}
+    </opportunities>
+  </market-intelligence>`;
+}
+
 function buildServerGroundedPrompts(
   industry: IndustryRow | null,
   category: CategoryRow | null,
   scenarioType: string,
   scenarioData: Record<string, unknown>,
   userInput: string,
-  injectShadowLog: boolean = false
+  injectShadowLog: boolean = false,
+  marketInsight: MarketInsightRow | null = null
 ): { systemPrompt: string; userPrompt: string } {
   // Build system prompt with injected context
   const contextParts: string[] = [];
 
   if (industry) contextParts.push(buildIndustryXML(industry));
   if (category) contextParts.push(buildCategoryXML(category));
+  if (marketInsight) contextParts.push(buildMarketIntelligenceXML(marketInsight));
 
   const systemPrompt = `You are an expert procurement analyst. Analyze the provided context and generate actionable recommendations.
 
@@ -467,24 +493,37 @@ serve(async (req) => {
 
       let industryResult: { data: IndustryRow | null; error: unknown } = { data: null, error: null };
       let categoryResult: { data: CategoryRow | null; error: unknown } = { data: null, error: null };
+      let insightResult: { data: MarketInsightRow | null; error: unknown } = { data: null, error: null };
       const fetchErrors: string[] = [];
 
       try {
-        [industryResult, categoryResult] = await Promise.all([
+        [industryResult, categoryResult, insightResult] = await Promise.all([
           industrySlug
             ? supabase.from("industry_contexts").select("name, slug, constraints, kpis").eq("slug", industrySlug).single()
             : Promise.resolve({ data: null, error: null }),
           categorySlug
             ? supabase.from("procurement_categories").select("name, slug, characteristics, kpis").eq("slug", categorySlug).single()
             : Promise.resolve({ data: null, error: null }),
+          (industrySlug && categorySlug)
+            ? supabase.from("market_insights")
+                .select("key_trends, risk_signals, opportunities")
+                .eq("industry_slug", industrySlug)
+                .eq("category_slug", categorySlug)
+                .eq("is_active", true)
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle()
+            : Promise.resolve({ data: null, error: null }),
         ]);
 
         if (industryResult.error) { console.error("[Sentinel] Failed to fetch industry context:", industryResult.error); fetchErrors.push("industry: " + String(industryResult.error)); }
         if (categoryResult.error) { console.error("[Sentinel] Failed to fetch category context:", categoryResult.error); fetchErrors.push("category: " + String(categoryResult.error)); }
+        if (insightResult.error) { console.warn("[Sentinel] Failed to fetch market insight (non-fatal):", insightResult.error); }
       } finally {
         tracer.patchRun(fetchRunId, {
           foundIndustry: !!industryResult.data,
           foundCategory: !!categoryResult.data,
+          foundInsight: !!insightResult.data,
           errors: fetchErrors,
         }, fetchErrors.length > 0 ? fetchErrors.join("; ") : undefined);
       }
@@ -504,7 +543,8 @@ serve(async (req) => {
           scenarioType || "general",
           scenarioData || {},
           rawUserPrompt,
-          shouldInjectShadowLog
+          shouldInjectShadowLog,
+          insightResult.data as MarketInsightRow | null
         );
 
         systemPrompt = grounded.systemPrompt;
