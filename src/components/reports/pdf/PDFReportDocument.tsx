@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
   page: {
     backgroundColor: colors.background,
     padding: 40,
-    fontFamily: "Courier",
+    fontFamily: "Helvetica",
     color: colors.text,
   },
   // Header
@@ -213,6 +213,7 @@ const styles = StyleSheet.create({
   inputValue: {
     fontSize: 9,
     color: colors.text,
+    fontFamily: "Courier",
     fontWeight: 600,
   },
   // Footer
@@ -229,7 +230,7 @@ const styles = StyleSheet.create({
   },
   footerBrand: {
     fontSize: 8,
-    fontFamily: "Courier",
+    fontFamily: "Helvetica",
     color: "rgba(249, 250, 251, 0.35)",
     fontWeight: 400,
     marginBottom: 8,
