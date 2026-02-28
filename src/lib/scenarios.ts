@@ -61,6 +61,10 @@ export interface Scenario {
   requiredFields: ScenarioRequiredField[];
   outputs: string[];
   strategySelector?: StrategyPresetType;
+  dataRequirements?: {
+    title: string;
+    sections: { heading: string; description: string }[];
+  };
 }
 
 export const scenarios: Scenario[] = [
@@ -73,6 +77,15 @@ export const scenarios: Scenario[] = [
     status: "available",
     category: "analysis",
     strategySelector: "speedVsQuality",
+    dataRequirements: {
+      title: "What data prevents Value Leakage in Make vs. Buy decisions?",
+      sections: [
+        { heading: "Internal Cost Benchmarks", description: "Gather fully-loaded costs for in-house production: labor, overhead, equipment depreciation, and opportunity cost. Without these, the AI cannot detect hidden cost advantages or flag underestimated internal expenses." },
+        { heading: "External Quotes & Market Data", description: "Collect at least 2–3 vendor quotes including unit price, MOQ, lead time, and payment terms. Market benchmarks let the AI identify whether quotes are competitive or inflated." },
+        { heading: "Strategic & Capability Factors", description: "Document core competencies, IP sensitivity, quality requirements, and capacity constraints. These qualitative inputs drive the strategic-fit dimension that pure cost analysis misses." },
+        { heading: "Timeline & Risk Constraints", description: "Note project deadlines, switching costs, regulatory lead times, and supply-chain risk factors. Missing timeline data is the #1 cause of post-decision Value Leakage in Make vs. Buy." },
+      ],
+    },
     requiredFields: [
       { id: "industryContext", label: "Industry & Business Context", description: "Describe your industry, business model, competitive landscape, and any specific constraints the AI should consider", type: "textarea", required: true, placeholder: "E.g., 'We are a mid-size pharmaceutical company in Germany. Regulatory compliance is critical. We have limited in-house manufacturing capacity but strong R&D...'" },
       { id: "projectBrief", label: "The Dilemma (Project Brief)", description: "Describe what you are considering making internally vs. buying externally", type: "textarea", required: true, placeholder: "E.g., Should we build our own CRM internally or buy Salesforce? Or: Should we manufacture this component in-house or outsource to Asia?" },
