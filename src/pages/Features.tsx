@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { NavLink } from "@/components/NavLink";
 import DataFlowDiagram from "@/components/features/DataFlowDiagram";
 import SentinelCapabilities from "@/components/features/SentinelCapabilities";
-import exosLogo from "@/assets/logo-exo-layers-v2.png";
+import exosLogo from "@/assets/logo-concept-layers.png";
 
 const Features = () => {
   const valuePropositions = [
