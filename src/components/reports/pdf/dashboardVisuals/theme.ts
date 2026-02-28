@@ -48,13 +48,13 @@ export const styles = StyleSheet.create({
     marginRight: 8,
   },
   dashboardTitle: {
-    fontSize: 13,
+    fontSize: 15,
     fontFamily: "Helvetica",
     fontWeight: 600,
     color: colors.text,
   },
   dashboardSubtitle: {
-    fontSize: 9,
+    fontSize: 10,
     color: colors.textMuted,
     marginTop: 2,
   },
@@ -70,7 +70,7 @@ export const styles = StyleSheet.create({
   },
   barLabel: {
     width: 92,
-    fontSize: 9,
+    fontSize: 10,
     color: colors.text,
   },
   barTrack: {
@@ -89,7 +89,7 @@ export const styles = StyleSheet.create({
   },
   barValue: {
     width: 54,
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: "Courier",
     color: colors.textMuted,
     textAlign: "right",
@@ -110,7 +110,7 @@ export const styles = StyleSheet.create({
   matrixCell: {
     flex: 1,
     padding: 6,
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: "Helvetica",
     color: colors.text,
     textAlign: "center",
@@ -127,7 +127,7 @@ export const styles = StyleSheet.create({
     alignSelf: "center",
   },
   scoreCellText: {
-    fontSize: 8,
+    fontSize: 9,
     fontFamily: "Courier",
     fontWeight: 700,
     color: colors.background,
@@ -141,7 +141,7 @@ export const styles = StyleSheet.create({
   },
   tornadoLabel: {
     width: 84,
-    fontSize: 9,
+    fontSize: 10,
     color: colors.text,
   },
   tornadoChart: {
@@ -169,7 +169,7 @@ export const styles = StyleSheet.create({
   },
   tornadoValue: {
     width: 48,
-    fontSize: 8,
+    fontSize: 9,
     fontFamily: "Courier",
     color: colors.textMuted,
     textAlign: "right",
@@ -196,7 +196,7 @@ export const styles = StyleSheet.create({
     marginRight: 4,
   },
   legendText: {
-    fontSize: 8,
+    fontSize: 9,
     color: colors.textMuted,
   },
 
@@ -213,12 +213,12 @@ export const styles = StyleSheet.create({
     alignItems: "center",
   },
   statLabel: {
-    fontSize: 8,
+    fontSize: 9,
     color: colors.textMuted,
     marginBottom: 2,
   },
   statValue: {
-    fontSize: 12,
+    fontSize: 14,
     fontFamily: "Courier",
     fontWeight: 600,
     color: colors.text,
@@ -238,12 +238,12 @@ export const styles = StyleSheet.create({
   },
   listText: {
     flex: 1,
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: "Helvetica",
     color: colors.text,
   },
   listMeta: {
-    fontSize: 8,
+    fontSize: 9,
     color: colors.textMuted,
     marginLeft: 8,
   },
@@ -276,7 +276,7 @@ export const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   quadrantLabel: {
-    fontSize: 8,
+    fontSize: 9,
     color: colors.textMuted,
   },
   quadrantDot: {
