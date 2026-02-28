@@ -1,7 +1,8 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, Sparkles, AlertTriangle, FlaskConical, Loader2, Wand2, BrainCircuit } from "lucide-react";
+import { ArrowLeft, ArrowRight, Sparkles, AlertTriangle, FlaskConical, Loader2, Wand2, BrainCircuit, ChevronRight } from "lucide-react";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { AnalysisPipelineAnimation } from "@/components/sentinel/AnalysisPipelineAnimation";
 import { DeepAnalysisPipeline } from "@/components/analysis/DeepAnalysisPipeline";
 import { DeepAnalysisResult } from "@/components/analysis/DeepAnalysisResult";
@@ -62,6 +63,32 @@ import {
   generateWithParameters,
 } from "@/lib/drafted-parameters";
 import { toast } from "sonner";
+
+const DataRequirementsCollapsible = ({ dataRequirements }: { dataRequirements: { title: string; sections: { heading: string; description: string }[] } }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger asChild>
+        <button className="w-full flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-muted/30 hover:bg-muted/50 transition-colors text-sm font-medium text-foreground">
+          <span>💡</span>
+          <span>What data do I need to prepare?</span>
+          <ChevronRight className={`ml-auto h-4 w-4 text-muted-foreground transition-transform duration-200 ${open ? "rotate-90" : ""}`} />
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="mt-3 border border-border rounded-lg p-4 bg-muted/30 space-y-3">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{dataRequirements.title}</p>
+          {dataRequirements.sections.map((s, i) => (
+            <div key={i}>
+              <p className="text-sm font-medium text-foreground">{s.heading}</p>
+              <p className="text-sm text-muted-foreground">{s.description}</p>
+            </div>
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+};
 
 interface GenericScenarioWizardProps {
   scenario: Scenario;
@@ -492,6 +519,10 @@ const GenericScenarioWizard = ({ scenario }: GenericScenarioWizardProps) => {
               industryName={industryContext?.name ?? null}
               categoryName={categoryContext?.name ?? null}
             />
+
+            {scenario.dataRequirements && (
+              <DataRequirementsCollapsible dataRequirements={scenario.dataRequirements} />
+            )}
 
             <div className="flex items-center justify-between">
               <div>
