@@ -26,9 +26,9 @@ const defaultSupplierData = [
 const SupplierPerformanceDashboard = ({ parsedData }: SupplierPerformanceDashboardProps) => {
   const supplierData = parsedData?.suppliers || defaultSupplierData;
   const getScoreColor = (score: number) => {
-    if (score >= 85) return "hsl(174, 72%, 50%)";
-    if (score >= 70) return "hsl(38, 92%, 50%)";
-    return "hsl(220, 15%, 45%)";
+    if (score >= 85) return "hsl(174, 30%, 45%)";
+    if (score >= 70) return "hsl(38, 35%, 48%)";
+    return "hsl(220, 20%, 48%)";
   };
 
   const getTrendIcon = (trend: string) => {
