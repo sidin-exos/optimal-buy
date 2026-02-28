@@ -6,17 +6,17 @@
 import { StyleSheet } from "@react-pdf/renderer";
 
 export const colors = {
-  primary: "#14b8a6",
-  primaryDark: "#0d9488",
-  background: "#0c1220",
-  surface: "#111827",
-  surfaceLight: "#1f2937",
-  text: "#f9fafb",
-  textMuted: "#9ca3af",
-  success: "#22c55e",
-  warning: "#f59e0b",
-  destructive: "#ef4444",
-  border: "#374151",
+  primary: "#6b9e8a",
+  primaryDark: "#5a8a76",
+  background: "#1e1e2e",
+  surface: "#262637",
+  surfaceLight: "#2f2f42",
+  text: "#d4d4dc",
+  textMuted: "#8b8b9e",
+  success: "#6bbf8a",
+  warning: "#c9a24d",
+  destructive: "#c06060",
+  border: "#3a3a4e",
 } as const;
 
 export const styles = StyleSheet.create({

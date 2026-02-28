@@ -12,17 +12,17 @@ import { extractDashboardData, stripDashboardData } from "@/lib/dashboard-data-p
 
 // EXOS Corporate Colors
 const colors = {
-  primary: "#14b8a6", // Teal
-  primaryDark: "#0d9488",
-  background: "#0c1220", // Deep navy
-  surface: "#111827",
-  surfaceLight: "#1f2937",
-  text: "#f9fafb",
-  textMuted: "#9ca3af",
-  textSemiTransparent: "rgba(249, 250, 251, 0.6)",
-  accent: "#06b6d4", // Cyan accent
-  success: "#22c55e",
-  border: "#374151",
+  primary: "#6b9e8a",
+  primaryDark: "#5a8a76",
+  background: "#1e1e2e",
+  surface: "#262637",
+  surfaceLight: "#2f2f42",
+  text: "#d4d4dc",
+  textMuted: "#8b8b9e",
+  textSemiTransparent: "rgba(212, 212, 220, 0.6)",
+  accent: "#6b9e8a",
+  success: "#6bbf8a",
+  border: "#3a3a4e",
 };
 
 const styles = StyleSheet.create({
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   footerBrand: {
     fontSize: 8,
     fontFamily: "Helvetica",
-    color: "rgba(249, 250, 251, 0.35)",
+    color: "rgba(212, 212, 220, 0.35)",
     fontWeight: 400,
     marginBottom: 8,
   },

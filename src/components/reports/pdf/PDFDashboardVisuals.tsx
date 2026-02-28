@@ -27,11 +27,11 @@ import { PDFDataQuality } from "./dashboardVisuals/PDFDataQuality";
 
 // Page-level styles matching PDFReportDocument theme
 const pageColors = {
-  primary: "#14b8a6",
-  background: "#0c1220",
-  border: "#374151",
-  text: "#f9fafb",
-  textMuted: "#9ca3af",
+  primary: "#6b9e8a",
+  background: "#1e1e2e",
+  border: "#3a3a4e",
+  text: "#d4d4dc",
+  textMuted: "#8b8b9e",
 };
 
 const pageStyles = {
@@ -63,7 +63,7 @@ const pageStyles = {
   footerBrand: {
     fontSize: 8,
     fontFamily: "Courier" as const,
-    color: "rgba(249, 250, 251, 0.35)",
+    color: "rgba(212, 212, 220, 0.35)",
     fontWeight: 400 as const,
     marginBottom: 8,
   },
