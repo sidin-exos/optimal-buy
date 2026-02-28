@@ -50,8 +50,8 @@ export const PDFScenarioComparison = ({ data }: { data?: ScenarioComparisonData 
           <Text style={styles.dashboardSubtitle}>Score-by-criterion (0–100)</Text>
         </View>
         <View style={{ alignItems: "flex-end" }}>
-          <Text style={{ fontSize: 12, fontWeight: 700, color: winner.color }}>{winner.name}</Text>
-          <Text style={{ fontSize: 7, color: colors.textMuted }}>recommended</Text>
+          <Text style={{ fontSize: 13, fontWeight: 700, color: winner.color }}>{winner.name}</Text>
+          <Text style={{ fontSize: 8, color: colors.textMuted }}>recommended</Text>
         </View>
       </View>
 
@@ -59,22 +59,22 @@ export const PDFScenarioComparison = ({ data }: { data?: ScenarioComparisonData 
         {effectiveCriteria.map((c, i) => (
           <View key={i} style={{ marginBottom: 6 }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 2 }}>
-              <Text style={{ fontSize: 8, color: colors.text }}>{c.name}</Text>
-              <Text style={{ fontSize: 7, color: colors.textMuted }}>Wt: {c.weight}%</Text>
+              <Text style={{ fontSize: 9, color: colors.text }}>{c.name}</Text>
+              <Text style={{ fontSize: 8, color: colors.textMuted }}>Wt: {c.weight}%</Text>
             </View>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <View style={{ flex: 1, flexDirection: "row", alignItems: "center" }}>
                 <View style={{ flex: 1, height: 9, backgroundColor: colors.surfaceLight, borderRadius: 2, overflow: "hidden" }}>
                   <View style={{ width: `${c.a}%`, height: 9, backgroundColor: scA.color, borderRadius: 2 }} />
                 </View>
-                <Text style={{ width: 22, fontSize: 8, color: getScoreColor(c.a, c.b), textAlign: "right", marginLeft: 4 }}>{c.a}</Text>
+                <Text style={{ width: 22, fontSize: 9, color: getScoreColor(c.a, c.b), textAlign: "right", marginLeft: 4 }}>{c.a}</Text>
               </View>
               <View style={{ width: 16 }} />
               <View style={{ flex: 1, flexDirection: "row", alignItems: "center" }}>
                 <View style={{ flex: 1, height: 9, backgroundColor: colors.surfaceLight, borderRadius: 2, overflow: "hidden" }}>
                   <View style={{ width: `${c.b}%`, height: 9, backgroundColor: scB.color, borderRadius: 2 }} />
                 </View>
-                <Text style={{ width: 22, fontSize: 8, color: getScoreColor(c.b, c.a), textAlign: "right", marginLeft: 4 }}>{c.b}</Text>
+                <Text style={{ width: 22, fontSize: 9, color: getScoreColor(c.b, c.a), textAlign: "right", marginLeft: 4 }}>{c.b}</Text>
               </View>
             </View>
           </View>
@@ -86,11 +86,11 @@ export const PDFScenarioComparison = ({ data }: { data?: ScenarioComparisonData 
           <Text style={[styles.matrixCell, styles.matrixCellLeft, { flex: 1.4 }]}>Metric</Text>
           <View style={[styles.matrixCell, { flexDirection: "row", alignItems: "center", justifyContent: "center" }]}>
             <View style={{ width: 7, height: 7, borderRadius: 1, backgroundColor: scA.color, marginRight: 3 }} />
-            <Text style={{ fontSize: 8 }}>{scA.name}</Text>
+            <Text style={{ fontSize: 9 }}>{scA.name}</Text>
           </View>
           <View style={[styles.matrixCell, { flexDirection: "row", alignItems: "center", justifyContent: "center" }]}>
             <View style={{ width: 7, height: 7, borderRadius: 1, backgroundColor: scB.color, marginRight: 3 }} />
-            <Text style={{ fontSize: 8 }}>{scB.name}</Text>
+            <Text style={{ fontSize: 9 }}>{scB.name}</Text>
           </View>
         </View>
         {effectiveCriteria.map((c, i) => (

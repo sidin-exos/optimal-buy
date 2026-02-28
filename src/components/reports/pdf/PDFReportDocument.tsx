@@ -22,6 +22,8 @@ const colors = {
   textSemiTransparent: "rgba(212, 212, 220, 0.6)",
   accent: "#6b9e8a",
   success: "#6bbf8a",
+  warning: "#c9a24d",
+  destructive: "#c06060",
   border: "#3a3a4e",
 };
 
@@ -476,33 +478,61 @@ const PDFReportDocument = ({
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Image src={exosLogo} style={styles.sectionLogoImage} />
-            <Text style={styles.sectionTitle}>Analysis Limitations</Text>
+            <Text style={styles.sectionTitle}>Data Quality Assessment</Text>
           </View>
           <View style={styles.sectionContent}>
-            <View style={styles.limitationItem}>
-              <View style={styles.limitationBullet} />
-              <Text style={styles.limitationText}>
-                This analysis is based on the information provided and may not reflect all market conditions, supplier capabilities, or internal constraints.
-              </Text>
-            </View>
-            <View style={styles.limitationItem}>
-              <View style={styles.limitationBullet} />
-              <Text style={styles.limitationText}>
-                AI-generated recommendations should be validated against current market data and organizational policies before implementation.
-              </Text>
-            </View>
-            <View style={styles.limitationItem}>
-              <View style={styles.limitationBullet} />
-              <Text style={styles.limitationText}>
-                Financial projections and savings estimates are indicative and subject to negotiation outcomes and external factors.
-              </Text>
-            </View>
-            <View style={styles.limitationItem}>
-              <View style={styles.limitationBullet} />
-              <Text style={styles.limitationText}>
-                Historical data patterns may not accurately predict future supplier behavior or market dynamics.
-              </Text>
-            </View>
+            {(() => {
+              const allKeys = Object.keys(formData);
+              const filledKeys = allKeys.filter(k => formData[k] && formData[k].trim() !== "");
+              const missingKeys = allKeys.filter(k => !formData[k] || formData[k].trim() === "");
+              const totalFields = Math.max(allKeys.length, 1);
+              const coveragePct = Math.round((filledKeys.length / totalFields) * 100);
+              const confidenceLevel = coveragePct >= 80 ? "High" : coveragePct >= 50 ? "Medium" : "Low";
+              const confidenceColor = coveragePct >= 80 ? colors.success : coveragePct >= 50 ? colors.warning : colors.destructive;
+
+              return (
+                <>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <View>
+                      <Text style={{ fontSize: 12, fontWeight: 700, color: colors.text }}>
+                        {filledKeys.length} of {totalFields} parameters provided
+                      </Text>
+                      <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 2 }}>
+                        {coveragePct}% coverage
+                      </Text>
+                    </View>
+                    <View style={{ backgroundColor: confidenceColor + "20", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 4, borderWidth: 1, borderColor: confidenceColor }}>
+                      <Text style={{ fontSize: 10, fontWeight: 700, color: confidenceColor }}>
+                        {confidenceLevel} Confidence
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={{ height: 8, backgroundColor: colors.surfaceLight, borderRadius: 4, overflow: "hidden", marginBottom: 10 }}>
+                    <View style={{ width: `${coveragePct}%`, height: 8, backgroundColor: confidenceColor, borderRadius: 4 }} />
+                  </View>
+
+                  {missingKeys.length > 0 && (
+                    <View style={{ marginBottom: 8 }}>
+                      <Text style={{ fontSize: 10, color: colors.textMuted, fontWeight: 600, marginBottom: 4 }}>Missing parameters:</Text>
+                      <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+                        {missingKeys.map(key => (
+                          <View key={key} style={{ backgroundColor: colors.destructive + "15", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3, marginRight: 6, marginBottom: 4 }}>
+                            <Text style={{ fontSize: 9, color: colors.destructive }}>
+                              {key.replace(/_/g, " ").replace(/([A-Z])/g, " $1").trim()}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+
+                  <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 4 }}>
+                    Provide additional parameters to improve analysis accuracy.
+                  </Text>
+                </>
+              );
+            })()}
           </View>
         </View>
 
@@ -510,20 +540,30 @@ const PDFReportDocument = ({
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Image src={exosLogo} style={styles.sectionLogoImage} />
-              <Text style={styles.sectionTitle}>Analysis Inputs</Text>
+              <Text style={styles.sectionTitle}>Analysis Parameters</Text>
             </View>
             <View style={styles.sectionContent}>
-              <View style={styles.inputsGrid}>
+              <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
                 {Object.entries(formData)
                   .filter(([_, value]) => value && value.trim() !== "")
-                  .map(([key, value]) => (
-                    <View key={key} style={styles.inputItem}>
-                      <Text style={styles.inputLabel}>
-                        {key.replace(/_/g, " ").replace(/([A-Z])/g, " $1")}
-                      </Text>
-                      <Text style={styles.inputValue}>{value}</Text>
-                    </View>
-                  ))}
+                  .map(([key, value]) => {
+                    const label = key.replace(/_/g, " ").replace(/([A-Z])/g, " $1").trim();
+                    let displayValue = value;
+                    if (value.length > 60) {
+                      const firstSentence = value.split(/[.!?\n]/)[0] || value;
+                      displayValue = firstSentence.length > 80
+                        ? firstSentence.substring(0, 77) + "…"
+                        : firstSentence;
+                    }
+                    return (
+                      <View key={key} style={{ flexDirection: "row", alignItems: "center", marginRight: 8, marginBottom: 6 }}>
+                        <Text style={{ fontSize: 8, color: colors.textMuted, marginRight: 4 }}>{label}:</Text>
+                        <View style={{ backgroundColor: colors.surfaceLight, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 3 }}>
+                          <Text style={{ fontSize: 9, color: colors.text, fontFamily: "Courier" }}>{displayValue}</Text>
+                        </View>
+                      </View>
+                    );
+                  })}
               </View>
             </View>
           </View>
