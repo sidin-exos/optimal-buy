@@ -89,13 +89,13 @@ const TimelineRoadmapDashboard = ({
         </div>
 
         {/* Phase bars */}
-        <div className="space-y-3">
+        <div className="divide-y divide-border/20">
           {effectivePhases.map((phase) => {
             const startPercent = ((phase.startWeek - 1) / (effectiveTotalWeeks - 1)) * 100;
             const widthPercent = ((phase.endWeek - phase.startWeek) / (effectiveTotalWeeks - 1)) * 100;
 
             return (
-              <div key={phase.id} className="relative">
+              <div key={phase.id} className="relative py-3 px-2 border-x border-border/15 first:border-t first:rounded-t border-border/15 last:border-b last:rounded-b">
                 {/* Phase label */}
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-medium text-foreground">{phase.name}</span>
