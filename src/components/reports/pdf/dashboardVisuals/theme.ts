@@ -87,6 +87,7 @@ export const styles = StyleSheet.create({
   barValue: {
     width: 54,
     fontSize: 8,
+    fontFamily: "Courier",
     color: colors.textMuted,
     textAlign: "right",
   },
@@ -107,6 +108,7 @@ export const styles = StyleSheet.create({
     flex: 1,
     padding: 6,
     fontSize: 8,
+    fontFamily: "Helvetica",
     color: colors.text,
     textAlign: "center",
   },
@@ -123,6 +125,7 @@ export const styles = StyleSheet.create({
   },
   scoreCellText: {
     fontSize: 7,
+    fontFamily: "Courier",
     fontWeight: 700,
     color: colors.background,
   },
@@ -164,6 +167,7 @@ export const styles = StyleSheet.create({
   tornadoValue: {
     width: 48,
     fontSize: 7,
+    fontFamily: "Courier",
     color: colors.textMuted,
     textAlign: "right",
   },
@@ -212,6 +216,7 @@ export const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 10,
+    fontFamily: "Courier",
     fontWeight: 600,
     color: colors.text,
   },
@@ -231,6 +236,7 @@ export const styles = StyleSheet.create({
   listText: {
     flex: 1,
     fontSize: 8,
+    fontFamily: "Helvetica",
     color: colors.text,
   },
   listMeta: {

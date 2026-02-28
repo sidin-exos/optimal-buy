@@ -21,7 +21,6 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import ReportExportButtons from "@/components/reports/ReportExportButtons";
 import DashboardRenderer from "@/components/reports/DashboardRenderer";
-import FontPreviewGenerator from "@/components/reports/pdf/FontPreviewGenerator";
 import { DashboardType, dashboardConfigs } from "@/lib/dashboard-mappings";
 import { useShareableReport } from "@/hooks/useShareableReport";
 import { stripDashboardData } from "@/lib/dashboard-data-parser";
@@ -224,16 +223,13 @@ const GeneratedReport = () => {
             </div>
 
             {/* Export Actions */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <FontPreviewGenerator />
-              <ReportExportButtons
-                scenarioTitle={scenarioTitle}
-                analysisResult={safeAnalysisResult}
-                formData={formData}
-                timestamp={timestamp}
-                selectedDashboards={selectedDashboards}
-              />
-            </div>
+            <ReportExportButtons
+              scenarioTitle={scenarioTitle}
+              analysisResult={safeAnalysisResult}
+              formData={formData}
+              timestamp={timestamp}
+              selectedDashboards={selectedDashboards}
+            />
           </div>
         </motion.div>
 
