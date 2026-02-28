@@ -37,16 +37,6 @@ const SentinelCapabilities = () => {
   return (
     <div className="relative">
       {/* Central Hub Visual */}
-      <div className="hidden lg:flex justify-center mb-8">
-        <div className="relative">
-          <div className="w-24 h-24 rounded-2xl gradient-primary flex items-center justify-center overflow-hidden">
-            <img src={exosLogo} alt="EXOS" className="w-full h-full object-cover" />
-          </div>
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 bg-background border border-border rounded-full">
-            <span className="text-xs font-medium text-foreground">EXOS Procurement Intelligence</span>
-          </div>
-        </div>
-      </div>
 
       {/* Capabilities Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
