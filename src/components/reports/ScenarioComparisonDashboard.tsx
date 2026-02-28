@@ -15,9 +15,9 @@ interface ScenarioComparisonDashboardProps {
 }
 
 const defaultScenarios = [
-  { id: "A", name: "Conservative", color: "hsl(174, 72%, 50%)" },
-  { id: "B", name: "Aggressive", color: "hsl(220, 70%, 60%)" },
-  { id: "C", name: "Hybrid", color: "hsl(280, 60%, 55%)" },
+  { id: "A", name: "Conservative", color: "hsl(174, 30%, 45%)" },
+  { id: "B", name: "Aggressive", color: "hsl(220, 25%, 55%)" },
+  { id: "C", name: "Hybrid", color: "hsl(260, 20%, 52%)" },
 ];
 
 const defaultRadarData = [

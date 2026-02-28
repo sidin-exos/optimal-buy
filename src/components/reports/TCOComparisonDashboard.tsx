@@ -35,9 +35,9 @@ interface TCOComparisonDashboardProps {
 }
 
 const defaultOptions: TCOOption[] = [
-  { id: "optionA", name: "Buy Outright", color: "hsl(174, 72%, 50%)", totalTCO: 485000 },
-  { id: "optionB", name: "3-Year Lease", color: "hsl(220, 70%, 60%)", totalTCO: 520000 },
-  { id: "optionC", name: "Subscription", color: "hsl(280, 60%, 55%)", totalTCO: 595000 },
+  { id: "optionA", name: "Buy Outright", color: "hsl(174, 30%, 45%)", totalTCO: 485000 },
+  { id: "optionB", name: "3-Year Lease", color: "hsl(220, 25%, 55%)", totalTCO: 520000 },
+  { id: "optionC", name: "Subscription", color: "hsl(260, 20%, 52%)", totalTCO: 595000 },
 ];
 
 const defaultData: TCODataPoint[] = [

@@ -21,10 +21,10 @@ interface LicenseTierDashboardProps {
 }
 
 const defaultTiers: LicenseTier[] = [
-  { name: "Power Users", users: 85, costPerUser: 45, totalCost: 45900, color: "hsl(174, 72%, 50%)", recommended: 75 },
-  { name: "Regular Users", users: 210, costPerUser: 25, totalCost: 63000, color: "hsl(220, 70%, 60%)", recommended: 180 },
-  { name: "Occasional", users: 340, costPerUser: 10, totalCost: 40800, color: "hsl(280, 60%, 55%)", recommended: 380 },
-  { name: "View-Only", users: 180, costPerUser: 5, totalCost: 10800, color: "hsl(45, 80%, 50%)", recommended: 180 },
+  { name: "Power Users", users: 85, costPerUser: 45, totalCost: 45900, color: "hsl(174, 30%, 45%)", recommended: 75 },
+  { name: "Regular Users", users: 210, costPerUser: 25, totalCost: 63000, color: "hsl(220, 25%, 55%)", recommended: 180 },
+  { name: "Occasional", users: 340, costPerUser: 10, totalCost: 40800, color: "hsl(260, 20%, 52%)", recommended: 380 },
+  { name: "View-Only", users: 180, costPerUser: 5, totalCost: 10800, color: "hsl(45, 30%, 48%)", recommended: 180 },
 ];
 
 const formatCurrency = (value: number, currency: string = "$"): string => {
