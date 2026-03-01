@@ -160,45 +160,45 @@ export const dashboardConfigs: Record<DashboardType, DashboardConfig> = {
 // Each scenario has 2-4 relevant dashboards, ordered by relevance
 export const scenarioDashboardMapping: Record<string, DashboardType[]> = {
   // Analysis and Optimization
-  "make-vs-buy": ["decision-matrix", "cost-waterfall", "scenario-comparison", "risk-matrix"],
-  "supplier-review": ["supplier-scorecard", "risk-matrix", "action-checklist", "timeline-roadmap"],
-  "tco-analysis": ["tco-comparison", "cost-waterfall", "sensitivity-spider", "decision-matrix"],
-  "software-licensing": ["license-tier", "tco-comparison", "scenario-comparison", "risk-matrix"],
-  "volume-consolidation": ["scenario-comparison", "supplier-scorecard", "risk-matrix", "cost-waterfall"],
-  "cost-breakdown": ["cost-waterfall", "sensitivity-spider", "decision-matrix"],
-  "category-strategy": ["kraljic-quadrant", "scenario-comparison", "timeline-roadmap", "action-checklist"],
-  "capex-vs-opex": ["tco-comparison", "cost-waterfall", "sensitivity-spider", "decision-matrix"],
-  "savings-calculation": ["cost-waterfall", "action-checklist", "sensitivity-spider", "data-quality"],
-  "saas-optimization": ["license-tier", "cost-waterfall", "action-checklist", "data-quality"],
+  "make-vs-buy": ["decision-matrix", "scenario-comparison", "cost-waterfall"],
+  "supplier-review": ["supplier-scorecard", "timeline-roadmap", "action-checklist"],
+  "tco-analysis": ["tco-comparison", "cost-waterfall", "scenario-comparison"],
+  "software-licensing": ["license-tier", "cost-waterfall"],
+  "volume-consolidation": ["scenario-comparison", "cost-waterfall"],
+  "cost-breakdown": ["cost-waterfall", "tco-comparison", "data-quality"],
+  "category-strategy": ["kraljic-quadrant", "timeline-roadmap"],
+  "capex-vs-opex": ["scenario-comparison", "sensitivity-spider"],
+  "savings-calculation": ["cost-waterfall", "action-checklist"],
+  "saas-optimization": ["license-tier", "cost-waterfall"],
   "specification-optimizer": ["decision-matrix", "cost-waterfall", "action-checklist", "data-quality"],
 
   // Planning and Sourcing
-  "tail-spend-sourcing": ["action-checklist", "decision-matrix", "data-quality"],
-  "requirements-gathering": ["action-checklist", "timeline-roadmap", "decision-matrix"],
-  "forecasting-budgeting": ["sensitivity-spider", "cost-waterfall", "timeline-roadmap", "risk-matrix"],
-  "negotiation-preparation": ["negotiation-prep", "scenario-comparison", "risk-matrix", "action-checklist"],
-  "procurement-project-planning": ["timeline-roadmap", "action-checklist", "risk-matrix", "sensitivity-spider"],
+  "tail-spend-sourcing": ["action-checklist", "data-quality"],
+  "requirements-gathering": ["action-checklist", "data-quality"],
+  "forecasting-budgeting": ["scenario-comparison", "sensitivity-spider"],
+  "negotiation-preparation": ["negotiation-prep", "scenario-comparison"],
+  "procurement-project-planning": ["timeline-roadmap", "action-checklist", "risk-matrix"],
 
   // Risk Management
-  "disruption-management": ["timeline-roadmap", "risk-matrix", "scenario-comparison", "action-checklist"],
+  "disruption-management": ["action-checklist", "timeline-roadmap", "risk-matrix"],
   "risk-assessment": ["risk-matrix", "scenario-comparison", "action-checklist", "data-quality"],
   "risk-matrix": ["risk-matrix", "supplier-scorecard", "action-checklist"],
-  "pre-flight-audit": ["supplier-scorecard", "risk-matrix", "action-checklist", "data-quality"],
+  "pre-flight-audit": ["data-quality", "risk-matrix"],
   "category-risk-evaluator": ["risk-matrix", "kraljic-quadrant", "sow-analysis", "action-checklist"],
-  "supplier-dependency-planner": ["risk-matrix", "supplier-scorecard", "scenario-comparison", "timeline-roadmap"],
-  "black-swan-scenario": ["risk-matrix", "scenario-comparison", "timeline-roadmap", "action-checklist"],
+  "supplier-dependency-planner": ["risk-matrix", "sensitivity-spider"],
+  "black-swan-scenario": ["risk-matrix", "sensitivity-spider", "scenario-comparison"],
 
   // Documentation and Contracts
-  "sow-critic": ["sow-analysis", "action-checklist", "risk-matrix"],
-  "sla-definition": ["decision-matrix", "action-checklist", "timeline-roadmap"],
-  "rfp-generator": ["timeline-roadmap", "decision-matrix", "action-checklist", "data-quality"],
-  "contract-template": ["action-checklist", "timeline-roadmap", "data-quality"],
+  "sow-critic": ["sow-analysis", "data-quality"],
+  "sla-definition": ["action-checklist", "negotiation-prep"],
+  "rfp-generator": ["action-checklist", "data-quality"],
+  "contract-template": ["action-checklist", "data-quality"],
 
   // Spend Analysis
-  "spend-analysis-categorization": ["cost-waterfall", "kraljic-quadrant", "supplier-scorecard", "data-quality"],
+  "spend-analysis-categorization": ["data-quality", "cost-waterfall"],
 
   // Market Snapshot
-  "market-snapshot": ["supplier-scorecard", "decision-matrix", "risk-matrix", "data-quality"],
+  "market-snapshot": ["data-quality", "action-checklist"],
 };
 
 // Get dashboards for a scenario with fallback
