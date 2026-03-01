@@ -66,9 +66,6 @@ const Index = () => {
                 Your sensitive commercial data is masked before reaching external APIs—then grounded 
                 and validated on the way back.
               </p>
-              <p className="text-sm text-muted-foreground/80 max-w-xl">
-                Distilled best practices. Fine-tuned AI logic. Your procurement exoskeleton.
-              </p>
             </section>
 
             {/* AI Guide */}
