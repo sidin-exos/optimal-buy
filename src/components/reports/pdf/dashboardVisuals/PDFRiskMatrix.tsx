@@ -1,6 +1,8 @@
 import { View, Text } from "@react-pdf/renderer";
-import { colors, styles } from "./theme";
+import { getPdfColors, getPdfStyles, type PdfThemeMode } from "./theme";
 import type { RiskMatrixData } from "@/lib/dashboard-data-parser";
+
+const colors = getPdfColors();
 
 const defaultRisks = [
   { id: "R1", name: "Supply Chain Disruption", impact: 5, probability: 4, category: "Operations" },
@@ -19,28 +21,34 @@ const levelToNum = (level: string): number => {
 
 const getRiskScore = (impact: number, probability: number): number => impact * probability;
 
-const getRiskSeverity = (score: number): { label: string; color: string; bgColor: string } => {
-  if (score >= 16) return { label: "Critical", color: colors.background, bgColor: colors.destructive };
-  if (score >= 10) return { label: "High", color: colors.background, bgColor: colors.warning };
-  if (score >= 6) return { label: "Medium", color: colors.text, bgColor: colors.surfaceLight };
-  return { label: "Low", color: colors.text, bgColor: colors.surfaceLight };
+const getRiskSeverity = (score: number, c: typeof colors) => {
+  if (score >= 16) return { label: "Critical", color: c.badgeText, bgColor: c.destructive };
+  if (score >= 10) return { label: "High", color: c.badgeText, bgColor: c.warning };
+  if (score >= 6) return { label: "Medium", color: c.text, bgColor: c.surfaceLight };
+  return { label: "Low", color: c.text, bgColor: c.surfaceLight };
 };
 
-const tableStyles = {
-  tableContainer: { marginTop: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 4, overflow: "hidden" as const },
-  headerRow: { flexDirection: "row" as const, backgroundColor: colors.surfaceLight, borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 6, paddingHorizontal: 8 },
-  dataRow: { flexDirection: "row" as const, borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 6, paddingHorizontal: 8, alignItems: "center" as const },
-  lastRow: { borderBottomWidth: 0 },
-  colSeverity: { width: "18%" as const, alignItems: "center" as const },
-  colRisk: { width: "38%" as const },
-  colImpact: { width: "14%" as const, alignItems: "center" as const },
-  colProb: { width: "14%" as const, alignItems: "center" as const },
-  colScore: { width: "16%" as const, alignItems: "center" as const },
-  headerText: { fontSize: 9, fontWeight: 700 as const, color: colors.textMuted, textTransform: "uppercase" as const },
-  cellText: { fontSize: 10, color: colors.text },
-};
+function buildTableStyles(c: typeof colors) {
+  return {
+    tableContainer: { marginTop: 8, borderWidth: 1, borderColor: c.border, borderRadius: 4, overflow: "hidden" as const },
+    headerRow: { flexDirection: "row" as const, backgroundColor: c.surfaceLight, borderBottomWidth: 1, borderBottomColor: c.border, paddingVertical: 6, paddingHorizontal: 8 },
+    dataRow: { flexDirection: "row" as const, borderBottomWidth: 1, borderBottomColor: c.border, paddingVertical: 6, paddingHorizontal: 8, alignItems: "center" as const },
+    lastRow: { borderBottomWidth: 0 },
+    colSeverity: { width: "18%" as const, alignItems: "center" as const },
+    colRisk: { width: "38%" as const },
+    colImpact: { width: "14%" as const, alignItems: "center" as const },
+    colProb: { width: "14%" as const, alignItems: "center" as const },
+    colScore: { width: "16%" as const, alignItems: "center" as const },
+    headerText: { fontSize: 9, fontWeight: 700 as const, color: c.textMuted, textTransform: "uppercase" as const },
+    cellText: { fontSize: 10, color: c.text },
+  };
+}
 
-export const PDFRiskMatrix = ({ data }: { data?: RiskMatrixData }) => {
+export const PDFRiskMatrix = ({ data, themeMode }: { data?: RiskMatrixData; themeMode?: PdfThemeMode }) => {
+  const colors = getPdfColors(themeMode);
+  const styles = getPdfStyles(themeMode);
+  const tableStyles = buildTableStyles(colors);
+
   const risks = data?.risks
     ? data.risks.map((r, idx) => ({
         id: `R${idx + 1}`,
@@ -66,12 +74,12 @@ export const PDFRiskMatrix = ({ data }: { data?: RiskMatrixData }) => {
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           {criticalCount > 0 && (
             <View style={{ backgroundColor: colors.destructive, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3, marginRight: 4 }}>
-              <Text style={{ fontSize: 9, fontWeight: 700, color: colors.background }}>{criticalCount} Critical</Text>
+              <Text style={{ fontSize: 9, fontWeight: 700, color: colors.badgeText }}>{criticalCount} Critical</Text>
             </View>
           )}
           {highCount > 0 && (
             <View style={{ backgroundColor: colors.warning, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3 }}>
-              <Text style={{ fontSize: 9, fontWeight: 700, color: colors.background }}>{highCount} High</Text>
+              <Text style={{ fontSize: 9, fontWeight: 700, color: colors.badgeText }}>{highCount} High</Text>
             </View>
           )}
         </View>
@@ -88,7 +96,7 @@ export const PDFRiskMatrix = ({ data }: { data?: RiskMatrixData }) => {
 
         {sortedRisks.map((risk, i) => {
           const score = getRiskScore(risk.impact, risk.probability);
-          const severity = getRiskSeverity(score);
+          const severity = getRiskSeverity(score, colors);
           return (
             <View key={risk.id} style={[tableStyles.dataRow, i === sortedRisks.length - 1 && tableStyles.lastRow]}>
               <View style={tableStyles.colSeverity}>

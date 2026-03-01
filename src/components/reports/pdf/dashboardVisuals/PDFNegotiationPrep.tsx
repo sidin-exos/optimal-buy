@@ -1,5 +1,7 @@
 import { View, Text } from "@react-pdf/renderer";
-import { colors, styles } from "./theme";
+import { getPdfColors, getPdfStyles, type PdfThemeMode } from "./theme";
+const colors = getPdfColors();
+const styles = getPdfStyles();
 import type { NegotiationPrepData } from "@/lib/dashboard-data-parser";
 
 const defaultSteps = [
@@ -16,7 +18,9 @@ const defaultMetrics = [
   { label: "Supplier Power", value: "Low" },
 ];
 
-export const PDFNegotiationPrep = ({ data }: { data?: NegotiationPrepData }) => {
+export const PDFNegotiationPrep = ({ data, themeMode }: { data?: NegotiationPrepData; themeMode?: PdfThemeMode }) => {
+  const colors = getPdfColors(themeMode);
+  const styles = getPdfStyles(themeMode);
   const steps = data?.sequence
     ? data.sequence.map((s, i) => ({
         label: s.step,

@@ -1,5 +1,7 @@
 import { View, Text } from "@react-pdf/renderer";
-import { colors, styles } from "./theme";
+import { getPdfColors, getPdfStyles, type PdfThemeMode } from "./theme";
+const colors = getPdfColors();
+const styles = getPdfStyles();
 import type { CostWaterfallData } from "@/lib/dashboard-data-parser";
 
 const defaultBreakdown = [
@@ -16,7 +18,9 @@ const formatAmount = (value: number, currency: string = "$"): string => {
   return `${currency}${value}`;
 };
 
-export const PDFCostWaterfall = ({ data }: { data?: CostWaterfallData }) => {
+export const PDFCostWaterfall = ({ data, themeMode }: { data?: CostWaterfallData; themeMode?: PdfThemeMode }) => {
+  const colors = getPdfColors(themeMode);
+  const styles = getPdfStyles(themeMode);
   const currency = data?.currency || "$";
 
   const costBreakdownData = data?.components

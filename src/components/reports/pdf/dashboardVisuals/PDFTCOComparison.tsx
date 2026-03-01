@@ -1,5 +1,7 @@
 import { View, Text } from "@react-pdf/renderer";
-import { colors, styles } from "./theme";
+import { getPdfColors, getPdfStyles, type PdfThemeMode } from "./theme";
+const colors = getPdfColors();
+const styles = getPdfStyles();
 import type { TCOComparisonData } from "@/lib/dashboard-data-parser";
 
 const defaultOptions = [
@@ -22,7 +24,9 @@ const formatCurrency = (value: number): string => {
   return `$${value}`;
 };
 
-export const PDFTCOComparison = ({ data }: { data?: TCOComparisonData }) => {
+export const PDFTCOComparison = ({ data, themeMode }: { data?: TCOComparisonData; themeMode?: PdfThemeMode }) => {
+  const colors = getPdfColors(themeMode);
+  const styles = getPdfStyles(themeMode);
   const options = data?.options || defaultOptions;
 
   const chartData = data?.data

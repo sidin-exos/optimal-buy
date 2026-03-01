@@ -7,9 +7,10 @@ import { Page, View, Text, Image } from "@react-pdf/renderer";
 import type { ReactNode } from "react";
 import { DashboardType, dashboardConfigs } from "@/lib/dashboard-mappings";
 import type { DashboardData } from "@/lib/dashboard-data-parser";
-import exosLogo from "@/assets/logo-concept-layers.png";
+import exosLogoDark from "@/assets/logo-concept-layers.png";
+import exosLogoLight from "@/assets/logo-concept-layers-light.png";
 
-import { styles, colors } from "./dashboardVisuals/theme";
+import { styles, colors, getPdfColors, getPdfStyles, type PdfThemeMode } from "./dashboardVisuals/theme";
 import { PDFCostWaterfall } from "./dashboardVisuals/PDFCostWaterfall";
 import { PDFDecisionMatrix } from "./dashboardVisuals/PDFDecisionMatrix";
 import { PDFSensitivityAnalysis } from "./dashboardVisuals/PDFSensitivityTornado";
@@ -25,155 +26,164 @@ import { PDFSOWAnalysis } from "./dashboardVisuals/PDFSOWAnalysis";
 import { PDFNegotiationPrep } from "./dashboardVisuals/PDFNegotiationPrep";
 import { PDFDataQuality } from "./dashboardVisuals/PDFDataQuality";
 
-// Page-level styles matching PDFReportDocument theme
-const pageColors = {
-  primary: "#6b9e8a",
-  background: "#1e1e2e",
-  border: "#3a3a4e",
-  text: "#d4d4dc",
-  textMuted: "#8b8b9e",
-};
+// ── Page-level style factory ──
 
-const pageStyles = {
-  page: {
-    backgroundColor: pageColors.background,
-    padding: 40,
-    fontFamily: "Courier" as const,
-    color: pageColors.text,
-  },
-  accentBar: {
-    position: "absolute" as const,
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 4,
-    backgroundColor: pageColors.primary,
-  },
-  gradientLayer1: {
-    position: "absolute" as const,
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: "50%",
-    backgroundColor: "#232338",
-  },
-  gradientLayer2: {
-    position: "absolute" as const,
-    top: "30%",
-    left: 0,
-    right: 0,
-    bottom: "30%",
-    backgroundColor: "rgba(107, 158, 138, 0.06)",
-  },
-  gradientLayer3: {
-    position: "absolute" as const,
-    top: "50%",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "#1a1a2a",
-  },
-  footer: {
-    position: "absolute" as const,
-    bottom: 30,
-    left: 40,
-    right: 40,
-    flexDirection: "column" as const,
-    alignItems: "center" as const,
-    borderTopWidth: 1,
-    borderTopColor: pageColors.border,
-    paddingTop: 15,
-  },
-  footerBrand: {
-    fontSize: 9,
-    fontFamily: "Courier" as const,
-    color: "rgba(212, 212, 220, 0.35)",
-    fontWeight: 400 as const,
-    marginBottom: 8,
-  },
-  footerRow: {
-    flexDirection: "row" as const,
-    justifyContent: "space-between" as const,
-    alignItems: "center" as const,
-    width: "100%",
-  },
-  footerText: {
-    fontSize: 9,
-    color: pageColors.textMuted,
-  },
-  pageNumber: {
-    fontSize: 9,
-    color: pageColors.textMuted,
-  },
-  sectionHeader: {
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    marginBottom: 16,
-  },
-  sectionLogoImage: {
-    width: 20,
-    height: 20,
-    marginRight: 8,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontFamily: "Helvetica" as const,
-    fontWeight: 600 as const,
-    color: pageColors.text,
-  },
-};
+function buildPageStyles(mode?: PdfThemeMode) {
+  const c = getPdfColors(mode);
+  const isLight = mode === "light";
 
-export const PDFDashboardPlaceholder = ({ name }: { name: string }) => (
-  <View style={styles.dashboardCard}>
-    <View style={styles.dashboardHeader}>
-      <View style={styles.dashboardIcon} />
-      <View>
-        <Text style={styles.dashboardTitle}>{name}</Text>
-        <Text style={styles.dashboardSubtitle}>Visualization unavailable</Text>
+  return {
+    page: {
+      backgroundColor: c.background,
+      padding: 40,
+      fontFamily: "Courier" as const,
+      color: c.text,
+    },
+    accentBar: {
+      position: "absolute" as const,
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 4,
+      backgroundColor: c.primary,
+    },
+    gradientLayer1: {
+      position: "absolute" as const,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: "50%",
+      backgroundColor: isLight ? "#f5f4f0" : "#232338",
+    },
+    gradientLayer2: {
+      position: "absolute" as const,
+      top: "30%",
+      left: 0,
+      right: 0,
+      bottom: "30%",
+      backgroundColor: isLight ? "rgba(74, 138, 116, 0.04)" : "rgba(107, 158, 138, 0.06)",
+    },
+    gradientLayer3: {
+      position: "absolute" as const,
+      top: "50%",
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: isLight ? "#efeeea" : "#1a1a2a",
+    },
+    footer: {
+      position: "absolute" as const,
+      bottom: 30,
+      left: 40,
+      right: 40,
+      flexDirection: "column" as const,
+      alignItems: "center" as const,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+      paddingTop: 15,
+    },
+    footerBrand: {
+      fontSize: 9,
+      fontFamily: "Courier" as const,
+      color: isLight ? "rgba(30, 30, 46, 0.25)" : "rgba(212, 212, 220, 0.35)",
+      fontWeight: 400 as const,
+      marginBottom: 8,
+    },
+    footerRow: {
+      flexDirection: "row" as const,
+      justifyContent: "space-between" as const,
+      alignItems: "center" as const,
+      width: "100%",
+    },
+    footerText: {
+      fontSize: 9,
+      color: c.textMuted,
+    },
+    pageNumber: {
+      fontSize: 9,
+      color: c.textMuted,
+    },
+    sectionHeader: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      marginBottom: 16,
+    },
+    sectionLogoImage: {
+      width: 20,
+      height: 20,
+      marginRight: 8,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontFamily: "Helvetica" as const,
+      fontWeight: 600 as const,
+      color: c.text,
+    },
+  };
+}
+
+const darkPageStyles = buildPageStyles("dark");
+const lightPageStylesCache = buildPageStyles("light");
+
+function getPageStyles(mode?: PdfThemeMode) {
+  return mode === "light" ? lightPageStylesCache : darkPageStyles;
+}
+
+export const PDFDashboardPlaceholder = ({ name, themeMode }: { name: string; themeMode?: PdfThemeMode }) => {
+  const s = getPdfStyles(themeMode);
+  const c = getPdfColors(themeMode);
+  return (
+    <View style={s.dashboardCard}>
+      <View style={s.dashboardHeader}>
+        <View style={s.dashboardIcon} />
+        <View>
+          <Text style={s.dashboardTitle}>{name}</Text>
+          <Text style={s.dashboardSubtitle}>Visualization unavailable</Text>
+        </View>
+      </View>
+      <View style={{ padding: 12, alignItems: "center" }}>
+        <Text style={{ fontSize: 9, color: c.textMuted, textAlign: "center" }}>
+          This dashboard doesn't have a PDF visual yet.
+        </Text>
       </View>
     </View>
-    <View style={{ padding: 12, alignItems: "center" }}>
-      <Text style={{ fontSize: 9, color: colors.textMuted, textAlign: "center" }}>
-        This dashboard doesn't have a PDF visual yet.
-      </Text>
-    </View>
-  </View>
-);
+  );
+};
 
 /** Render a single dashboard by type */
-const renderDashboard = (dashboardType: DashboardType, parsedData?: DashboardData | null): ReactNode => {
+const renderDashboard = (dashboardType: DashboardType, parsedData?: DashboardData | null, themeMode?: PdfThemeMode): ReactNode => {
   switch (dashboardType) {
     case "action-checklist":
-      return <PDFActionChecklist data={parsedData?.actionChecklist} />;
+      return <PDFActionChecklist data={parsedData?.actionChecklist} themeMode={themeMode} />;
     case "decision-matrix":
-      return <PDFDecisionMatrix data={parsedData?.decisionMatrix} />;
+      return <PDFDecisionMatrix data={parsedData?.decisionMatrix} themeMode={themeMode} />;
     case "cost-waterfall":
-      return <PDFCostWaterfall data={parsedData?.costWaterfall} />;
+      return <PDFCostWaterfall data={parsedData?.costWaterfall} themeMode={themeMode} />;
     case "timeline-roadmap":
-      return <PDFTimelineRoadmap data={parsedData?.timelineRoadmap} />;
+      return <PDFTimelineRoadmap data={parsedData?.timelineRoadmap} themeMode={themeMode} />;
     case "kraljic-quadrant":
-      return <PDFKraljicQuadrant data={parsedData?.kraljicQuadrant} />;
+      return <PDFKraljicQuadrant data={parsedData?.kraljicQuadrant} themeMode={themeMode} />;
     case "tco-comparison":
-      return <PDFTCOComparison data={parsedData?.tcoComparison} />;
+      return <PDFTCOComparison data={parsedData?.tcoComparison} themeMode={themeMode} />;
     case "license-tier":
-      return <PDFLicenseTier data={parsedData?.licenseTier} />;
+      return <PDFLicenseTier data={parsedData?.licenseTier} themeMode={themeMode} />;
     case "sensitivity-spider":
-      return <PDFSensitivityAnalysis data={parsedData?.sensitivitySpider} />;
+      return <PDFSensitivityAnalysis data={parsedData?.sensitivitySpider} themeMode={themeMode} />;
     case "risk-matrix":
-      return <PDFRiskMatrix data={parsedData?.riskMatrix} />;
+      return <PDFRiskMatrix data={parsedData?.riskMatrix} themeMode={themeMode} />;
     case "scenario-comparison":
-      return <PDFScenarioComparison data={parsedData?.scenarioComparison} />;
+      return <PDFScenarioComparison data={parsedData?.scenarioComparison} themeMode={themeMode} />;
     case "supplier-scorecard":
-      return <PDFSupplierScorecard data={parsedData?.supplierScorecard} />;
+      return <PDFSupplierScorecard data={parsedData?.supplierScorecard} themeMode={themeMode} />;
     case "sow-analysis":
-      return <PDFSOWAnalysis data={parsedData?.sowAnalysis} />;
+      return <PDFSOWAnalysis data={parsedData?.sowAnalysis} themeMode={themeMode} />;
     case "negotiation-prep":
-      return <PDFNegotiationPrep data={parsedData?.negotiationPrep} />;
+      return <PDFNegotiationPrep data={parsedData?.negotiationPrep} themeMode={themeMode} />;
     case "data-quality":
-      return <PDFDataQuality data={parsedData?.dataQuality} />;
+      return <PDFDataQuality data={parsedData?.dataQuality} themeMode={themeMode} />;
     default: {
       const config = dashboardConfigs[dashboardType as DashboardType];
-      return <PDFDashboardPlaceholder name={config?.name || String(dashboardType)} />;
+      return <PDFDashboardPlaceholder name={config?.name || String(dashboardType)} themeMode={themeMode} />;
     }
   }
 };
@@ -190,16 +200,19 @@ function chunkPairs<T>(arr: T[]): T[][] {
 interface PDFDashboardVisualsProps {
   selectedDashboards: DashboardType[];
   parsedData?: DashboardData | null;
+  pdfTheme?: PdfThemeMode;
 }
 
 /**
  * Returns an array of <Page> elements, each containing 1-2 dashboards.
  * Must be rendered as direct children of <Document>.
  */
-export const PDFDashboardPages = ({ selectedDashboards, parsedData }: PDFDashboardVisualsProps) => {
+export const PDFDashboardPages = ({ selectedDashboards, parsedData, pdfTheme }: PDFDashboardVisualsProps) => {
   if (!selectedDashboards || selectedDashboards.length === 0) return null;
 
   const pairs = chunkPairs(selectedDashboards);
+  const pageStyles = getPageStyles(pdfTheme);
+  const exosLogo = pdfTheme === "light" ? exosLogoLight : exosLogoDark;
 
   return (
     <>
@@ -224,7 +237,7 @@ export const PDFDashboardPages = ({ selectedDashboards, parsedData }: PDFDashboa
               minPresenceAhead={1}
               wrap={false}
             >
-              {renderDashboard(dashboardType, parsedData)}
+              {renderDashboard(dashboardType, parsedData, pdfTheme)}
             </View>
           ))}
 
