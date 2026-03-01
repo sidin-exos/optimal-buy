@@ -5,12 +5,13 @@ import { lovable } from "@/integrations/lovable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Header from "@/components/layout/Header";
-import exosLogo from "@/assets/logo-concept-layers.png";
+import { useThemedLogo } from "@/hooks/useThemedLogo";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const Auth = () => {
   const navigate = useNavigate();
+  const exosLogo = useThemedLogo();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);

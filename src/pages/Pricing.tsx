@@ -3,7 +3,7 @@ import Header from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import exosLogo from "@/assets/logo-concept-layers.png";
+import { useThemedLogo } from "@/hooks/useThemedLogo";
 
 const pricingTiers = [
   {
@@ -69,6 +69,7 @@ const pricingTiers = [
 ];
 
 const Pricing = () => {
+  const exosLogo = useThemedLogo();
   return (
     <div className="min-h-screen gradient-hero">
       <div

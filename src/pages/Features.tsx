@@ -4,9 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { NavLink } from "@/components/NavLink";
 import DataFlowDiagram from "@/components/features/DataFlowDiagram";
 import SentinelCapabilities from "@/components/features/SentinelCapabilities";
-import exosLogo from "@/assets/logo-concept-layers.png";
+import { useThemedLogo } from "@/hooks/useThemedLogo";
 
 const Features = () => {
+  const exosLogo = useThemedLogo();
   const valuePropositions = [
     {
       icon: Brain,

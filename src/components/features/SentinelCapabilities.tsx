@@ -1,8 +1,9 @@
 import { EyeOff, Database, ShieldCheck, RotateCcw, Brain } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import exosLogo from "@/assets/logo-concept-layers.png";
+import { useThemedLogo } from "@/hooks/useThemedLogo";
 
 const SentinelCapabilities = () => {
+  const exosLogo = useThemedLogo();
   const capabilities = [
     {
       icon: EyeOff,
