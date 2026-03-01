@@ -5,12 +5,14 @@ import ThemeToggle from "@/components/layout/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { NavLink } from "@/components/NavLink";
 import { supabase } from "@/integrations/supabase/client";
-import exosLogo from "@/assets/logo-concept-layers.png";
+import { useThemedLogo } from "@/hooks/useThemedLogo";
+import exosLogoFallback from "@/assets/logo-concept-layers.png";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 const Header = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<SupabaseUser | null>(null);
+  const exosLogo = useThemedLogo();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
