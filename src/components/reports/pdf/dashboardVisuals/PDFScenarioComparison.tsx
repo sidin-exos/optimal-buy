@@ -1,5 +1,7 @@
 import { View, Text } from "@react-pdf/renderer";
-import { colors, styles } from "./theme";
+import { getPdfColors, getPdfStyles, type PdfThemeMode } from "./theme";
+const colors = getPdfColors();
+const styles = getPdfStyles();
 import type { ScenarioComparisonData } from "@/lib/dashboard-data-parser";
 
 const defaultCriteria = [
@@ -16,7 +18,9 @@ const getScoreColor = (score: number, otherScore: number): string => {
   return colors.text;
 };
 
-export const PDFScenarioComparison = ({ data }: { data?: ScenarioComparisonData }) => {
+export const PDFScenarioComparison = ({ data, themeMode }: { data?: ScenarioComparisonData; themeMode?: PdfThemeMode }) => {
+  const colors = getPdfColors(themeMode);
+  const styles = getPdfStyles(themeMode);
   const scenarioNames = data?.scenarios?.slice(0, 2) || [
     { id: "a", name: "Scenario A", color: colors.primary },
     { id: "b", name: "Scenario B", color: colors.option2 },

@@ -1,5 +1,7 @@
 import { View, Text } from "@react-pdf/renderer";
-import { colors, styles } from "./theme";
+import { getPdfColors, getPdfStyles, type PdfThemeMode } from "./theme";
+const colors = getPdfColors();
+const styles = getPdfStyles();
 import type { SOWAnalysisData } from "@/lib/dashboard-data-parser";
 
 const defaultClauses = [
@@ -23,7 +25,9 @@ const statusToDisplay = (status: string): { label: string; risk: string } => {
   return { label: "Weak", risk: "High" };
 };
 
-export const PDFSOWAnalysis = ({ data }: { data?: SOWAnalysisData }) => {
+export const PDFSOWAnalysis = ({ data, themeMode }: { data?: SOWAnalysisData; themeMode?: PdfThemeMode }) => {
+  const colors = getPdfColors(themeMode);
+  const styles = getPdfStyles(themeMode);
   const clauses = data?.sections
     ? data.sections.map(s => {
         const display = statusToDisplay(s.status);

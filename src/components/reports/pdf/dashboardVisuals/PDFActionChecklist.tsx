@@ -1,5 +1,7 @@
 import { View, Text } from "@react-pdf/renderer";
-import { colors, styles } from "./theme";
+import { getPdfColors, getPdfStyles, type PdfThemeMode } from "./theme";
+const colors = getPdfColors();
+const styles = getPdfStyles();
 import type { ActionChecklistData } from "@/lib/dashboard-data-parser";
 
 const defaultTasks = [
@@ -11,7 +13,9 @@ const defaultTasks = [
   { task: "Finalize award recommendation", status: "To Do", priority: "High", owner: "Procurement Lead", color: colors.textMuted },
 ];
 
-export const PDFActionChecklist = ({ data }: { data?: ActionChecklistData }) => {
+export const PDFActionChecklist = ({ data, themeMode }: { data?: ActionChecklistData; themeMode?: PdfThemeMode }) => {
+  const colors = getPdfColors(themeMode);
+  const styles = getPdfStyles(themeMode);
   const tasks = data?.actions?.map(a => ({
     task: a.action,
     status: a.status === "done" ? "Done" : a.status === "in-progress" ? "In Progress" : a.status === "blocked" ? "Blocked" : "To Do",

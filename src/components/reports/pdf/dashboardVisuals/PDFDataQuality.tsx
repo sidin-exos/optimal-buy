@@ -1,5 +1,7 @@
 import { View, Text } from "@react-pdf/renderer";
-import { colors, styles } from "./theme";
+import { getPdfColors, getPdfStyles, type PdfThemeMode } from "./theme";
+const colors = getPdfColors();
+const styles = getPdfStyles();
 import type { DataQualityData } from "@/lib/dashboard-data-parser";
 
 const defaultFields = [
@@ -22,7 +24,9 @@ const statusToDisplay = (status: string): { label: string; missing: string } => 
   return { label: "Missing", missing: "Data not available" };
 };
 
-export const PDFDataQuality = ({ data }: { data?: DataQualityData }) => {
+export const PDFDataQuality = ({ data, themeMode }: { data?: DataQualityData; themeMode?: PdfThemeMode }) => {
+  const colors = getPdfColors(themeMode);
+  const styles = getPdfStyles(themeMode);
   const fields = data?.fields
     ? data.fields.map(f => {
         const display = statusToDisplay(f.status);

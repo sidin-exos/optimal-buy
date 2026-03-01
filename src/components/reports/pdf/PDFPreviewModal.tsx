@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { pdf } from "@react-pdf/renderer";
 import { motion, AnimatePresence } from "framer-motion";
-import { Download, Loader2, Eye, EyeOff, AlertTriangle, FileText } from "lucide-react";
+import { Download, Loader2, Eye, EyeOff, AlertTriangle, FileText, Sun, Moon } from "lucide-react";
+import type { PdfThemeMode } from "./dashboardVisuals/theme";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,6 +36,7 @@ const PDFPreviewModal = ({
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [previewError, setPreviewError] = useState(false);
+  const [pdfTheme, setPdfTheme] = useState<PdfThemeMode>("dark");
 
   const fileName = `EXOS_${scenarioTitle.replace(/\s+/g, "_")}_${new Date(timestamp).toISOString().split("T")[0]}.pdf`;
 
@@ -66,6 +68,7 @@ const PDFPreviewModal = ({
     timestamp,
     selectedDashboards,
     formData,
+    pdfTheme,
   ]);
 
   const generatePdfBlob = async () => {
@@ -80,6 +83,7 @@ const PDFPreviewModal = ({
           formData={formData}
           timestamp={timestamp}
           selectedDashboards={selectedDashboards}
+          pdfTheme={pdfTheme}
         />
       );
       
@@ -126,6 +130,28 @@ const PDFPreviewModal = ({
               </p>
             </div>
             <div className="flex items-center gap-2">
+              {/* Theme Toggle */}
+              <div className="flex items-center rounded-md border border-border overflow-hidden">
+                <Button
+                  variant={pdfTheme === "light" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setPdfTheme("light")}
+                  className="gap-1.5 rounded-none border-0 h-8 px-3"
+                >
+                  <Sun className="w-3.5 h-3.5" />
+                  Light
+                </Button>
+                <Button
+                  variant={pdfTheme === "dark" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setPdfTheme("dark")}
+                  className="gap-1.5 rounded-none border-0 h-8 px-3"
+                >
+                  <Moon className="w-3.5 h-3.5" />
+                  Dark
+                </Button>
+              </div>
+
               <Button
                 variant="outline"
                 size="sm"

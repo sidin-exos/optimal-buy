@@ -1,5 +1,7 @@
 import { View, Text } from "@react-pdf/renderer";
-import { colors, styles } from "./theme";
+import { getPdfColors, getPdfStyles, type PdfThemeMode } from "./theme";
+const colors = getPdfColors();
+const styles = getPdfStyles();
 import type { KraljicData } from "@/lib/dashboard-data-parser";
 
 const quadrantInfo = {
@@ -26,7 +28,9 @@ const deriveQuadrant = (supplyRisk: number, businessImpact: number): Quadrant =>
   return "noncritical";
 };
 
-export const PDFKraljicQuadrant = ({ data }: { data?: KraljicData }) => {
+export const PDFKraljicQuadrant = ({ data, themeMode }: { data?: KraljicData; themeMode?: PdfThemeMode }) => {
+  const colors = getPdfColors(themeMode);
+  const styles = getPdfStyles(themeMode);
   const items = data?.items
     ? data.items.map(item => ({
         name: item.name,

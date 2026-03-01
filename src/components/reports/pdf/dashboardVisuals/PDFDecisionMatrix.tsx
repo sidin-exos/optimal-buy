@@ -1,5 +1,7 @@
 import { View, Text } from "@react-pdf/renderer";
-import { colors, styles } from "./theme";
+import { getPdfColors, getPdfStyles, type PdfThemeMode } from "./theme";
+const colors = getPdfColors();
+const styles = getPdfStyles();
 import type { DecisionMatrixData } from "@/lib/dashboard-data-parser";
 
 const defaultCriteria = [
@@ -25,7 +27,9 @@ const getScoreBg = (score: number): string => {
   return colors.destructive;
 };
 
-export const PDFDecisionMatrix = ({ data }: { data?: DecisionMatrixData }) => {
+export const PDFDecisionMatrix = ({ data, themeMode }: { data?: DecisionMatrixData; themeMode?: PdfThemeMode }) => {
+  const colors = getPdfColors(themeMode);
+  const styles = getPdfStyles(themeMode);
   const matrixCriteria = data?.criteria || defaultCriteria;
 
   const matrixOptions = data?.options

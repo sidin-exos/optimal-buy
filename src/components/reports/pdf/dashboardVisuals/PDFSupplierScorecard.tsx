@@ -1,6 +1,8 @@
 import { View, Text } from "@react-pdf/renderer";
-import { colors, styles } from "./theme";
+import { getPdfColors, getPdfStyles, type PdfThemeMode } from "./theme";
 import type { SupplierScorecardData } from "@/lib/dashboard-data-parser";
+
+const colors = getPdfColors();
 
 const defaultSuppliers = [
   { name: "Alpha Corp", score: 92, trend: "up" as const, spend: "$450K", category: "Strategic" },
@@ -10,35 +12,41 @@ const defaultSuppliers = [
   { name: "Epsilon Materials", score: 88, trend: "up" as const, spend: "$210K", category: "Strategic" },
 ];
 
-const getScoreColor = (score: number): string => {
-  if (score >= 85) return colors.success;
-  if (score >= 70) return colors.warning;
-  return colors.destructive;
+const getScoreColor = (score: number, c: typeof colors): string => {
+  if (score >= 85) return c.success;
+  if (score >= 70) return c.warning;
+  return c.destructive;
 };
 
 const getTrendSymbol = (trend: string): string => {
   switch (trend) { case "up": return "▲"; case "down": return "▼"; default: return "►"; }
 };
 
-const getTrendColor = (trend: string): string => {
-  switch (trend) { case "up": return colors.success; case "down": return colors.destructive; default: return colors.textMuted; }
+const getTrendColor = (trend: string, c: typeof colors): string => {
+  switch (trend) { case "up": return c.success; case "down": return c.destructive; default: return c.textMuted; }
 };
 
-const tableStyles = {
-  tableContainer: { marginTop: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 4, overflow: "hidden" as const },
-  headerRow: { flexDirection: "row" as const, backgroundColor: colors.surfaceLight, borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 6, paddingHorizontal: 8 },
-  dataRow: { flexDirection: "row" as const, borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 6, paddingHorizontal: 8, alignItems: "center" as const },
-  lastRow: { borderBottomWidth: 0 },
-  colSupplier: { width: "35%" as const },
-  colScore: { width: "15%" as const, alignItems: "center" as const },
-  colTrend: { width: "12%" as const, alignItems: "center" as const },
-  colSpend: { width: "18%" as const, alignItems: "flex-end" as const },
-  colCategory: { width: "20%" as const, alignItems: "flex-end" as const },
-  headerText: { fontSize: 9, fontWeight: 700 as const, color: colors.textMuted, textTransform: "uppercase" as const },
-  cellText: { fontSize: 10, color: colors.text },
-};
+function buildTableStyles(c: typeof colors) {
+  return {
+    tableContainer: { marginTop: 8, borderWidth: 1, borderColor: c.border, borderRadius: 4, overflow: "hidden" as const },
+    headerRow: { flexDirection: "row" as const, backgroundColor: c.surfaceLight, borderBottomWidth: 1, borderBottomColor: c.border, paddingVertical: 6, paddingHorizontal: 8 },
+    dataRow: { flexDirection: "row" as const, borderBottomWidth: 1, borderBottomColor: c.border, paddingVertical: 6, paddingHorizontal: 8, alignItems: "center" as const },
+    lastRow: { borderBottomWidth: 0 },
+    colSupplier: { width: "35%" as const },
+    colScore: { width: "15%" as const, alignItems: "center" as const },
+    colTrend: { width: "12%" as const, alignItems: "center" as const },
+    colSpend: { width: "18%" as const, alignItems: "flex-end" as const },
+    colCategory: { width: "20%" as const, alignItems: "flex-end" as const },
+    headerText: { fontSize: 9, fontWeight: 700 as const, color: c.textMuted, textTransform: "uppercase" as const },
+    cellText: { fontSize: 10, color: c.text },
+  };
+}
 
-export const PDFSupplierScorecard = ({ data }: { data?: SupplierScorecardData }) => {
+export const PDFSupplierScorecard = ({ data, themeMode }: { data?: SupplierScorecardData; themeMode?: PdfThemeMode }) => {
+  const colors = getPdfColors(themeMode);
+  const styles = getPdfStyles(themeMode);
+  const tableStyles = buildTableStyles(colors);
+
   const suppliers = data?.suppliers
     ? data.suppliers.map(s => ({ name: s.name, score: s.score, trend: s.trend, spend: s.spend, category: "General" }))
     : defaultSuppliers;
@@ -69,12 +77,12 @@ export const PDFSupplierScorecard = ({ data }: { data?: SupplierScorecardData })
           <View key={i} style={[tableStyles.dataRow, i === suppliers.length - 1 && tableStyles.lastRow]}>
             <View style={tableStyles.colSupplier}><Text style={tableStyles.cellText}>{supplier.name}</Text></View>
             <View style={[tableStyles.colScore, { flexDirection: "row", justifyContent: "center" }]}>
-              <View style={{ backgroundColor: getScoreColor(supplier.score) + "30", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3 }}>
-                <Text style={{ fontSize: 10, fontWeight: 700, color: getScoreColor(supplier.score) }}>{supplier.score}</Text>
+              <View style={{ backgroundColor: getScoreColor(supplier.score, colors) + "30", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3 }}>
+                <Text style={{ fontSize: 10, fontWeight: 700, color: getScoreColor(supplier.score, colors) }}>{supplier.score}</Text>
               </View>
             </View>
             <View style={tableStyles.colTrend}>
-              <Text style={{ fontSize: 11, color: getTrendColor(supplier.trend) }}>{getTrendSymbol(supplier.trend)}</Text>
+              <Text style={{ fontSize: 11, color: getTrendColor(supplier.trend, colors) }}>{getTrendSymbol(supplier.trend)}</Text>
             </View>
             <View style={tableStyles.colSpend}><Text style={[tableStyles.cellText, { textAlign: "right" }]}>{supplier.spend}</Text></View>
             <View style={tableStyles.colCategory}><Text style={[tableStyles.cellText, { fontSize: 9, color: colors.textMuted }]}>{supplier.category}</Text></View>

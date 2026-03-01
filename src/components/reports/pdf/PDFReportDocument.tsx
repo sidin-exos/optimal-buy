@@ -6,12 +6,16 @@ import {
   StyleSheet,
   Image,
 } from "@react-pdf/renderer";
-import exosLogo from "@/assets/logo-concept-layers.png";
+import exosLogoDark from "@/assets/logo-concept-layers.png";
+import exosLogoLight from "@/assets/logo-concept-layers-light.png";
 import { PDFDashboardPages } from "./PDFDashboardVisuals";
 import { extractDashboardData, stripDashboardData } from "@/lib/dashboard-data-parser";
+import { DashboardType } from "@/lib/dashboard-mappings";
+import type { PdfThemeMode } from "./dashboardVisuals/theme";
 
-// EXOS Corporate Colors — Warm Neutral
-const colors = {
+// ── Color palettes ──
+
+const darkColors = {
   primary: "#6b9e8a",
   primaryDark: "#5a8a76",
   background: "#1e1e2e",
@@ -25,269 +29,304 @@ const colors = {
   warning: "#c9a24d",
   destructive: "#c06060",
   border: "#3a3a4e",
+  footerBrand: "rgba(212, 212, 220, 0.35)",
+  gradientLayer1: "#232338",
+  gradientLayer2: "rgba(107, 158, 138, 0.06)",
+  gradientLayer3: "#1a1a2a",
 };
 
-const styles = StyleSheet.create({
-  page: {
-    backgroundColor: colors.background,
-    padding: 40,
-    fontFamily: "Helvetica",
-    color: colors.text,
-  },
-  // Header
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 30,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    paddingBottom: 20,
-  },
-  logoSection: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  logoImage: {
-    width: 40,
-    height: 40,
-    marginRight: 12,
-  },
-  brandName: {
-    fontSize: 23,
-    fontFamily: "Helvetica",
-    fontWeight: 700,
-    color: colors.text,
-    letterSpacing: 1,
-  },
-  brandTagline: {
-    fontSize: 9,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  reportMeta: {
-    textAlign: "right",
-  },
-  reportBadge: {
-    backgroundColor: colors.surfaceLight,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    marginBottom: 4,
-  },
-  reportBadgeText: {
-    fontSize: 8,
-    color: colors.primary,
-    fontWeight: 600,
-  },
-  reportDate: {
-    fontSize: 9,
-    color: colors.textMuted,
-  },
-  // Title Section
-  titleSection: {
-    marginBottom: 30,
-  },
-  reportTitle: {
-    fontSize: 28,
-    fontFamily: "Helvetica",
-    fontWeight: 700,
-    color: colors.primary,
-    marginBottom: 8,
-  },
-  reportSubtitle: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  // Sections
-  section: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  sectionLogoImage: {
-    width: 20,
-    height: 20,
-    marginRight: 8,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontFamily: "Helvetica",
-    fontWeight: 600,
-    color: colors.text,
-  },
-  sectionContent: {
-    backgroundColor: colors.surface,
-    borderRadius: 8,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  // Key Points
-  keyPointItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 10,
-  },
-  keyPointBullet: {
-    width: 18,
-    height: 18,
-    backgroundColor: colors.success,
-    borderRadius: 9,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 2,
-    marginRight: 10,
-  },
-  keyPointBulletText: {
-    color: colors.background,
-    fontSize: 9,
-    fontWeight: 700,
-  },
-  keyPointText: {
-    flex: 1,
-    fontSize: 12,
-    color: colors.text,
-    lineHeight: 1.5,
-  },
-  // Analysis Content
-  analysisText: {
-    fontSize: 12,
-    color: colors.text,
-    lineHeight: 1.6,
-    marginBottom: 8,
-  },
-  analysisHeader: {
-    fontSize: 14,
-    fontFamily: "Helvetica",
-    fontWeight: 700,
-    color: colors.text,
-    marginTop: 14,
-    marginBottom: 8,
-  },
-  analysisSubHeader: {
-    fontSize: 13,
-    fontFamily: "Helvetica",
-    fontWeight: 600,
-    color: colors.text,
-    marginTop: 10,
-    marginBottom: 6,
-  },
-  // Limitations Section
-  limitationItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 8,
-  },
-  limitationBullet: {
-    width: 6,
-    height: 6,
-    backgroundColor: colors.textMuted,
-    borderRadius: 3,
-    marginTop: 5,
-    marginRight: 8,
-  },
-  limitationText: {
-    flex: 1,
-    fontSize: 10,
-    color: colors.textMuted,
-    lineHeight: 1.5,
-  },
-  // Inputs Summary
-  inputsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  inputItem: {
-    width: "48%",
-    marginBottom: 8,
-    marginRight: 12,
-  },
-  inputLabel: {
-    fontSize: 9,
-    color: colors.textMuted,
-    marginBottom: 2,
-    textTransform: "capitalize",
-  },
-  inputValue: {
-    fontSize: 10,
-    color: colors.text,
-    fontFamily: "Courier",
-    fontWeight: 600,
-  },
-  // Footer
-  footer: {
-    position: "absolute",
-    bottom: 30,
-    left: 40,
-    right: 40,
-    flexDirection: "column",
-    alignItems: "center",
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: 15,
-  },
-  footerBrand: {
-    fontSize: 9,
-    fontFamily: "Helvetica",
-    color: "rgba(212, 212, 220, 0.35)",
-    fontWeight: 400,
-    marginBottom: 8,
-  },
-  footerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    width: "100%",
-  },
-  footerText: {
-    fontSize: 9,
-    color: colors.textMuted,
-  },
-  pageNumber: {
-    fontSize: 9,
-    color: colors.textMuted,
-  },
-  // Accent bar
-  accentBar: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 4,
-    backgroundColor: colors.primary,
-  },
-  // Gradient simulation layers
-  gradientLayer1: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: "50%",
-    backgroundColor: "#232338",
-  },
-  gradientLayer2: {
-    position: "absolute",
-    top: "30%",
-    left: 0,
-    right: 0,
-    bottom: "30%",
-    backgroundColor: "rgba(107, 158, 138, 0.06)",
-  },
-  gradientLayer3: {
-    position: "absolute",
-    top: "50%",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "#1a1a2a",
-  },
-});
+const lightColors = {
+  primary: "#4a8a74",
+  primaryDark: "#3d7563",
+  background: "#f8f7f4",
+  surface: "#ffffff",
+  surfaceLight: "#f0efe8",
+  text: "#1e1e2e",
+  textMuted: "#6b6b7e",
+  textSemiTransparent: "rgba(30, 30, 46, 0.5)",
+  accent: "#4a8a74",
+  success: "#3a9960",
+  warning: "#b08930",
+  destructive: "#c04040",
+  border: "#d8d8e0",
+  footerBrand: "rgba(30, 30, 46, 0.25)",
+  gradientLayer1: "#f5f4f0",
+  gradientLayer2: "rgba(74, 138, 116, 0.04)",
+  gradientLayer3: "#efeeea",
+};
 
-import { DashboardType } from "@/lib/dashboard-mappings";
+type DocColors = typeof darkColors;
+
+function getDocColors(mode?: PdfThemeMode): DocColors {
+  return mode === "light" ? lightColors : darkColors;
+}
+
+function getDocLogo(mode?: PdfThemeMode) {
+  return mode === "light" ? exosLogoLight : exosLogoDark;
+}
+
+// ── Style factory ──
+
+function buildDocStyles(c: DocColors) {
+  return StyleSheet.create({
+    page: {
+      backgroundColor: c.background,
+      padding: 40,
+      fontFamily: "Helvetica",
+      color: c.text,
+    },
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      marginBottom: 30,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+      paddingBottom: 20,
+    },
+    logoSection: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    logoImage: {
+      width: 40,
+      height: 40,
+      marginRight: 12,
+    },
+    brandName: {
+      fontSize: 23,
+      fontFamily: "Helvetica",
+      fontWeight: 700,
+      color: c.text,
+      letterSpacing: 1,
+    },
+    brandTagline: {
+      fontSize: 9,
+      color: c.textMuted,
+      marginTop: 2,
+    },
+    reportMeta: {
+      textAlign: "right",
+    },
+    reportBadge: {
+      backgroundColor: c.surfaceLight,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 4,
+      marginBottom: 4,
+    },
+    reportBadgeText: {
+      fontSize: 8,
+      color: c.primary,
+      fontWeight: 600,
+    },
+    reportDate: {
+      fontSize: 9,
+      color: c.textMuted,
+    },
+    titleSection: {
+      marginBottom: 30,
+    },
+    reportTitle: {
+      fontSize: 28,
+      fontFamily: "Helvetica",
+      fontWeight: 700,
+      color: c.primary,
+      marginBottom: 8,
+    },
+    reportSubtitle: {
+      fontSize: 12,
+      color: c.textMuted,
+    },
+    section: {
+      marginBottom: 24,
+    },
+    sectionHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 12,
+    },
+    sectionLogoImage: {
+      width: 20,
+      height: 20,
+      marginRight: 8,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontFamily: "Helvetica",
+      fontWeight: 600,
+      color: c.text,
+    },
+    sectionContent: {
+      backgroundColor: c.surface,
+      borderRadius: 8,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    keyPointItem: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      marginBottom: 10,
+    },
+    keyPointBullet: {
+      width: 18,
+      height: 18,
+      backgroundColor: c.success,
+      borderRadius: 9,
+      justifyContent: "center",
+      alignItems: "center",
+      marginTop: 2,
+      marginRight: 10,
+    },
+    keyPointBulletText: {
+      color: "#ffffff",
+      fontSize: 9,
+      fontWeight: 700,
+    },
+    keyPointText: {
+      flex: 1,
+      fontSize: 12,
+      color: c.text,
+      lineHeight: 1.5,
+    },
+    analysisText: {
+      fontSize: 12,
+      color: c.text,
+      lineHeight: 1.6,
+      marginBottom: 8,
+    },
+    analysisHeader: {
+      fontSize: 14,
+      fontFamily: "Helvetica",
+      fontWeight: 700,
+      color: c.text,
+      marginTop: 14,
+      marginBottom: 8,
+    },
+    analysisSubHeader: {
+      fontSize: 13,
+      fontFamily: "Helvetica",
+      fontWeight: 600,
+      color: c.text,
+      marginTop: 10,
+      marginBottom: 6,
+    },
+    limitationItem: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      marginBottom: 8,
+    },
+    limitationBullet: {
+      width: 6,
+      height: 6,
+      backgroundColor: c.textMuted,
+      borderRadius: 3,
+      marginTop: 5,
+      marginRight: 8,
+    },
+    limitationText: {
+      flex: 1,
+      fontSize: 10,
+      color: c.textMuted,
+      lineHeight: 1.5,
+    },
+    inputsGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+    },
+    inputItem: {
+      width: "48%",
+      marginBottom: 8,
+      marginRight: 12,
+    },
+    inputLabel: {
+      fontSize: 9,
+      color: c.textMuted,
+      marginBottom: 2,
+      textTransform: "capitalize",
+    },
+    inputValue: {
+      fontSize: 10,
+      color: c.text,
+      fontFamily: "Courier",
+      fontWeight: 600,
+    },
+    footer: {
+      position: "absolute",
+      bottom: 30,
+      left: 40,
+      right: 40,
+      flexDirection: "column",
+      alignItems: "center",
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+      paddingTop: 15,
+    },
+    footerBrand: {
+      fontSize: 9,
+      fontFamily: "Helvetica",
+      color: c.footerBrand,
+      fontWeight: 400,
+      marginBottom: 8,
+    },
+    footerRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      width: "100%",
+    },
+    footerText: {
+      fontSize: 9,
+      color: c.textMuted,
+    },
+    pageNumber: {
+      fontSize: 9,
+      color: c.textMuted,
+    },
+    accentBar: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 4,
+      backgroundColor: c.primary,
+    },
+    gradientLayer1: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: "50%",
+      backgroundColor: c.gradientLayer1,
+    },
+    gradientLayer2: {
+      position: "absolute",
+      top: "30%",
+      left: 0,
+      right: 0,
+      bottom: "30%",
+      backgroundColor: c.gradientLayer2,
+    },
+    gradientLayer3: {
+      position: "absolute",
+      top: "50%",
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: c.gradientLayer3,
+    },
+  });
+}
+
+const darkDocStyles = buildDocStyles(darkColors);
+const lightDocStyles = buildDocStyles(lightColors);
+
+function getDocStyles(mode?: PdfThemeMode) {
+  return mode === "light" ? lightDocStyles : darkDocStyles;
+}
+
+// ── Props ──
 
 interface PDFReportDocumentProps {
   scenarioTitle: string;
@@ -295,9 +334,11 @@ interface PDFReportDocumentProps {
   formData: Record<string, string>;
   timestamp: string;
   selectedDashboards?: DashboardType[];
+  pdfTheme?: PdfThemeMode;
 }
 
-// Clean markdown formatting from text
+// ── Helpers ──
+
 const cleanMarkdown = (text: string): string => {
   return text
     .replace(/\*\*\*/g, "")
@@ -340,17 +381,24 @@ const formatDate = (dateString: string) => {
   });
 };
 
+// ── Component ──
+
 const PDFReportDocument = ({
   scenarioTitle,
   analysisResult,
   formData,
   timestamp,
   selectedDashboards = [],
+  pdfTheme = "dark",
 }: PDFReportDocumentProps) => {
   const parsedData = extractDashboardData(analysisResult);
   const strippedAnalysis = stripDashboardData(analysisResult);
   const keyPoints = extractKeyPoints(strippedAnalysis);
   const analysisLines = strippedAnalysis.split("\n").filter((line) => line.trim());
+
+  const styles = getDocStyles(pdfTheme);
+  const colors = getDocColors(pdfTheme);
+  const exosLogo = getDocLogo(pdfTheme);
 
   return (
     <Document>
@@ -417,7 +465,7 @@ const PDFReportDocument = ({
       </Page>
 
       {selectedDashboards.length > 0 && (
-        <PDFDashboardPages selectedDashboards={selectedDashboards} parsedData={parsedData} />
+        <PDFDashboardPages selectedDashboards={selectedDashboards} parsedData={parsedData} pdfTheme={pdfTheme} />
       )}
 
       <Page size="A4" style={styles.page}>

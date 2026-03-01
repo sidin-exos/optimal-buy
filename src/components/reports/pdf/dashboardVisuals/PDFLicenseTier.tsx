@@ -1,5 +1,7 @@
 import { View, Text } from "@react-pdf/renderer";
-import { colors, styles } from "./theme";
+import { getPdfColors, getPdfStyles, type PdfThemeMode } from "./theme";
+const colors = getPdfColors();
+const styles = getPdfStyles();
 import type { LicenseTierData } from "@/lib/dashboard-data-parser";
 
 const defaultTiers = [
@@ -14,7 +16,9 @@ const formatCurrency = (value: number): string => {
   return `$${value}`;
 };
 
-export const PDFLicenseTier = ({ data }: { data?: LicenseTierData }) => {
+export const PDFLicenseTier = ({ data, themeMode }: { data?: LicenseTierData; themeMode?: PdfThemeMode }) => {
+  const colors = getPdfColors(themeMode);
+  const styles = getPdfStyles(themeMode);
   const tiers = data?.tiers || defaultTiers;
 
   const totalUsers = tiers.reduce((sum, t) => sum + t.users, 0);

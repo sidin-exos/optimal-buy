@@ -1,5 +1,7 @@
 import { View, Text } from "@react-pdf/renderer";
-import { colors, styles } from "./theme";
+import { getPdfColors, getPdfStyles, type PdfThemeMode } from "./theme";
+const colors = getPdfColors();
+const styles = getPdfStyles();
 import type { TimelineRoadmapData } from "@/lib/dashboard-data-parser";
 
 const statusColorMap: Record<string, string> = {
@@ -23,7 +25,9 @@ const mapStatus = (s: string): string => {
   return s;
 };
 
-export const PDFTimelineRoadmap = ({ data }: { data?: TimelineRoadmapData }) => {
+export const PDFTimelineRoadmap = ({ data, themeMode }: { data?: TimelineRoadmapData; themeMode?: PdfThemeMode }) => {
+  const colors = getPdfColors(themeMode);
+  const styles = getPdfStyles(themeMode);
   const phases = data?.phases
     ? data.phases.map(p => {
         const status = mapStatus(p.status);

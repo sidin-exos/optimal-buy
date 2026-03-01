@@ -1,5 +1,7 @@
 import { View, Text } from "@react-pdf/renderer";
-import { colors, styles } from "./theme";
+import { getPdfColors, getPdfStyles, type PdfThemeMode } from "./theme";
+const colors = getPdfColors();
+const styles = getPdfStyles();
 import type { SensitivityData } from "@/lib/dashboard-data-parser";
 
 const defaultVariables = [
@@ -10,7 +12,9 @@ const defaultVariables = [
   { name: "Quality Defects ±50%", low: -3, high: 2, baseValue: "2%" },
 ];
 
-export const PDFSensitivityAnalysis = ({ data }: { data?: SensitivityData }) => {
+export const PDFSensitivityAnalysis = ({ data, themeMode }: { data?: SensitivityData; themeMode?: PdfThemeMode }) => {
+  const colors = getPdfColors(themeMode);
+  const styles = getPdfStyles(themeMode);
   const variables = data?.variables
     ? data.variables.map(v => {
         const baseCase = v.baseCase || 1;
