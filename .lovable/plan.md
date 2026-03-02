@@ -1,35 +1,34 @@
 
 
-## Plan: Enrich Light Theme with Additional Color Nuances
+## Plan: Technology Dropdown + Customer Success Stories
 
-The current light theme palette is limited to: sage teal (primary), cool gray (secondary), emerald green (highlight), plus status colors. This makes it feel flat and monochromatic. We'll add new complementary color tokens from the same cool-warm spectrum without touching any existing values.
+### Change 1: Header — Convert "Technology" link to dropdown
 
-### New color tokens to add
+Replace the `NavLink` for "Technology" with a `DropdownMenu` labeled **"Technology & Customer Success"** containing three items:
+- "Fine-Tuned AI Agentic Orchestration" → navigates to `/features#orchestration`
+- "Privacy-First Data Flow" → navigates to `/features#dataflow`
+- "Customer Success Stories" → navigates to `/features#success`
 
-All colors stay within the desaturated, enterprise-grade palette — siblings of the existing sage/teal hues:
+### Change 2: Features page — Add section IDs + Customer Success section
 
-| Token | Light mode HSL | Purpose | Usage |
-|-------|---------------|---------|-------|
-| `--info` | `200 45% 48%` (soft steel blue) | Informational states, secondary CTAs | Badges, info alerts, links |
-| `--iris` | `245 30% 58%` (muted lavender) | Tertiary accent, category badges | Category labels, tags, subtle differentiation |
-| `--copper` | `22 50% 52%` (warm copper) | Warm contrast point | Feature highlights, icons, data viz |
-| `--surface` | `210 16% 93%` | Subtle card/section background layering | Alternating sections, nested cards |
-| `--surface-foreground` | same as foreground | Text on surface | — |
+- Add `id="orchestration"` to the Sentinel Capabilities section
+- Add `id="dataflow"` to the Data Flow section
+- Rename the Sentinel section heading from "Fine-Tuned AI Orchestration" to "Fine-Tuned AI Agentic Orchestration"
+- Add a new **Customer Success Stories** section (`id="success"`) at the bottom with 3 mock referral cards
 
-Dark mode equivalents will also be added (slightly brighter/desaturated versions).
+### Change 3: Customer Success Stories content
 
-### Files to modify
+Three mock referrals grounded in EXOS procurement scenarios:
 
-1. **`src/index.css`** — Add new CSS variables in both `:root` and `.dark` blocks. Add a new gradient variable `--gradient-accent` using the iris-to-info range.
+1. **MedTech Solutions GmbH** — Used TCO Analysis + Make-or-Buy scenarios to uncover hidden logistics costs, saving 18% on surgical instrument procurement across 12 EU hospitals.
 
-2. **`tailwind.config.ts`** — Register `info`, `iris`, `copper`, and `surface` in the colors map so they become available as utility classes (`bg-info`, `text-iris`, `border-copper`, etc.).
+2. **NordSteel Industries AB** — Leveraged Black Swan Simulation + Supplier Risk Assessment to build contingency plans after a key raw material supplier faced regulatory issues. Avoided a 6-week production halt.
 
-3. **`src/pages/Index.tsx`** — Apply the new tokens to the dashboard: use `surface` for alternating category section backgrounds, `iris` for category labels, and `copper` for scenario count/icon accents to demonstrate the richer palette immediately.
+3. **CleanTech Mobility SAS** — Used Consolidation Wizard + Negotiation Prep to consolidate 47 component suppliers down to 12 strategic partners, reducing admin overhead by 35% and improving delivery reliability.
 
-4. **`src/components/scenarios/ScenarioPreviewPanel.tsx`** — Use `info` and `iris` colors for the category badge and scenario output tags in the preview panel.
+Each card will show: company name, industry badge, scenario(s) used, quote from a procurement lead, and key metric.
 
-5. **`src/components/dashboard/ScenarioCard.tsx`** — Add subtle `copper` or `iris` tints to the icon backgrounds to differentiate scenario categories visually.
-
-### What stays unchanged
-All existing color tokens (primary, secondary, accent, highlight, muted, success, warning, destructive) remain identical.
+### Files modified
+- `src/components/layout/Header.tsx` — Dropdown replacement
+- `src/pages/Features.tsx` — Section IDs, renamed heading, new Customer Success section
 
