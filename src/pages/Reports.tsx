@@ -7,6 +7,8 @@ import { getDashboardScenarioCount } from "@/lib/dashboard-scenario-mapping";
 import DashboardContextCard from "@/components/reports/DashboardContextCard";
 import { Scale, DollarSign, ShieldAlert, CalendarClock, DatabaseZap, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 // Dashboard components
 import ActionChecklistDashboard from "@/components/reports/ActionChecklistDashboard";
@@ -187,27 +189,51 @@ const Reports = () => {
         {/* Dashboard Tabs */}
         <section className="mb-8">
           <Tabs value={selectedTab} onValueChange={(v) => setSelectedTab(v as DashboardType)} className="w-full">
-            <TabsList className="mb-6 flex-wrap h-auto gap-1 bg-secondary/30 p-1">
-              {allDashboards.map((dashboardId) => {
-                const config = dashboardConfigs[dashboardId];
-                const count = getDashboardScenarioCount(dashboardId);
-                const isHighlighted = highlightedDashboards.includes(dashboardId);
-                return (
-                  <TabsTrigger
-                    key={dashboardId}
-                    value={dashboardId}
-                    className={`text-xs px-3 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all ${
-                      isHighlighted ? "ring-2 ring-primary/50 bg-primary/10" : ""
-                    }`}
-                  >
-                    {config.name}
-                    {count > 0 && (
-                      <span className="ml-1.5 text-[10px] opacity-60">{count}</span>
-                    )}
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
+            {/* Mobile: Select dropdown */}
+            <div className="md:hidden mb-6">
+              <Select value={selectedTab} onValueChange={(v) => setSelectedTab(v as DashboardType)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {allDashboards.map((dashboardId) => {
+                    const config = dashboardConfigs[dashboardId];
+                    const count = getDashboardScenarioCount(dashboardId);
+                    return (
+                      <SelectItem key={dashboardId} value={dashboardId}>
+                        {config.name}{count > 0 ? ` (${count})` : ""}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Desktop: Scrollable tabs */}
+            <ScrollArea className="hidden md:block w-full mb-6">
+              <TabsList className="inline-flex w-max h-auto gap-1 bg-secondary/30 p-1">
+                {allDashboards.map((dashboardId) => {
+                  const config = dashboardConfigs[dashboardId];
+                  const count = getDashboardScenarioCount(dashboardId);
+                  const isHighlighted = highlightedDashboards.includes(dashboardId);
+                  return (
+                    <TabsTrigger
+                      key={dashboardId}
+                      value={dashboardId}
+                      className={`text-xs px-3 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all whitespace-nowrap ${
+                        isHighlighted ? "ring-2 ring-primary/50 bg-primary/10" : ""
+                      }`}
+                    >
+                      {config.name}
+                      {count > 0 && (
+                        <span className="ml-1.5 text-[10px] opacity-60">{count}</span>
+                      )}
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
 
             {/* Action Checklist */}
             <TabsContent value="action-checklist">
