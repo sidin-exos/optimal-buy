@@ -99,13 +99,34 @@ const Header = () => {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <NavLink 
-            to="/features" 
-            className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
-            activeClassName="text-foreground"
-          >
-            Technology
-          </NavLink>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 outline-none">
+                Technology & Customer Success
+                <ChevronDown className="w-5 h-5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-72">
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => navigate("/features#orchestration")}
+              >
+                Fine-Tuned AI Agentic Orchestration
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => navigate("/features#dataflow")}
+              >
+                Privacy-First Data Flow
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => navigate("/features#success")}
+              >
+                Customer Success Stories
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <NavLink 
             to="/reports" 
             className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
