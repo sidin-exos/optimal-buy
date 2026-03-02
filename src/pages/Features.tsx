@@ -1,13 +1,60 @@
-import { Brain, Database, ArrowRight, Lock, Sparkles, FileCheck, Eye } from "lucide-react";
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
+import { Brain, Database, ArrowRight, Lock, Sparkles, FileCheck, Eye, Quote, TrendingUp, Shield, Users } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NavLink } from "@/components/NavLink";
+import { Badge } from "@/components/ui/badge";
 import DataFlowDiagram from "@/components/features/DataFlowDiagram";
 import SentinelCapabilities from "@/components/features/SentinelCapabilities";
 import { useThemedLogo } from "@/hooks/useThemedLogo";
 
+const successStories = [
+  {
+    company: "MedTech Solutions GmbH",
+    industry: "Medical Devices",
+    scenarios: ["TCO Analysis", "Make-or-Buy"],
+    quote: "EXOS revealed hidden logistics costs we'd been overlooking for years. The TCO breakdown across our 12 hospital supply chains was eye-opening—we renegotiated three major contracts within weeks.",
+    person: "Dr. Katrin Schäfer, Head of Strategic Procurement",
+    metric: "18%",
+    metricLabel: "Cost savings on surgical instrument procurement",
+    icon: TrendingUp,
+  },
+  {
+    company: "NordSteel Industries AB",
+    industry: "Heavy Industry",
+    scenarios: ["Black Swan Simulation", "Supplier Risk Assessment"],
+    quote: "When our primary tungsten supplier faced EU regulatory action, EXOS had already flagged the risk two months prior. The contingency plans we'd built using the Black Swan module kept our production lines running.",
+    person: "Erik Lindqvist, VP Supply Chain",
+    metric: "6-week",
+    metricLabel: "Production halt avoided",
+    icon: Shield,
+  },
+  {
+    company: "CleanTech Mobility SAS",
+    industry: "Automotive / Green Mobility",
+    scenarios: ["Consolidation Wizard", "Negotiation Prep"],
+    quote: "Going from 47 component suppliers to 12 strategic partners sounded impossible. EXOS mapped the consolidation path, prepared our negotiation briefs, and we closed the transition in one quarter.",
+    person: "Amélie Durand, Chief Procurement Officer",
+    metric: "35%",
+    metricLabel: "Admin overhead reduction",
+    icon: Users,
+  },
+];
+
 const Features = () => {
   const exosLogo = useThemedLogo();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.hash) {
+      const el = document.getElementById(location.hash.slice(1));
+      if (el) {
+        setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+      }
+    }
+  }, [location.hash]);
+
   const valuePropositions = [
     {
       icon: Brain,
@@ -113,11 +160,11 @@ const Features = () => {
           </div>
         </section>
 
-        {/* Sentinel Capabilities Section - MOVED BEFORE DATA FLOW */}
-        <section className="mb-20 animate-fade-up" style={{ animationDelay: "300ms" }}>
+        {/* Sentinel Capabilities Section */}
+        <section id="orchestration" className="mb-20 animate-fade-up" style={{ animationDelay: "300ms" }}>
           <div className="text-center mb-10">
             <h2 className="font-display text-2xl md:text-3xl font-bold mb-3">
-              Fine-Tuned <span className="text-gradient">AI Orchestration</span>
+              Fine-Tuned <span className="text-gradient">AI Agentic Orchestration</span>
             </h2>
             <p className="text-muted-foreground max-w-xl mx-auto">
               Our custom-trained intelligence layer validates, enriches, and orchestrates 
@@ -129,7 +176,7 @@ const Features = () => {
         </section>
 
         {/* Data Flow Section */}
-        <section className="mb-16 animate-fade-up" style={{ animationDelay: "400ms" }}>
+        <section id="dataflow" className="mb-20 animate-fade-up" style={{ animationDelay: "400ms" }}>
           <div className="text-center mb-10">
             <h2 className="font-display text-2xl md:text-3xl font-bold mb-3">
               Privacy-First <span className="text-gradient">Data Flow</span>
@@ -141,6 +188,63 @@ const Features = () => {
           </div>
           
           <DataFlowDiagram />
+        </section>
+
+        {/* Customer Success Stories Section */}
+        <section id="success" className="mb-16 animate-fade-up" style={{ animationDelay: "500ms" }}>
+          <div className="text-center mb-10">
+            <h2 className="font-display text-2xl md:text-3xl font-bold mb-3">
+              Customer <span className="text-gradient">Success Stories</span>
+            </h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              See how EU procurement teams use EXOS to prevent value leakage, 
+              manage supply chain risk, and drive measurable savings.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {successStories.map((story, index) => (
+              <Card
+                key={story.company}
+                className="card-elevated border-border/50 animate-fade-up"
+                style={{ animationDelay: `${600 + index * 100}ms` }}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-10 h-10 rounded-lg bg-copper/15 flex items-center justify-center">
+                      <story.icon className="w-5 h-5 text-copper" />
+                    </div>
+                    <Badge variant="outline" className="text-iris border-iris/30 bg-iris/10 text-xs">
+                      {story.industry}
+                    </Badge>
+                  </div>
+                  <CardTitle className="font-display text-lg">{story.company}</CardTitle>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {story.scenarios.map((s) => (
+                      <Badge key={s} variant="secondary" className="text-xs bg-info/10 text-info border-info/20">
+                        {s}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="relative pl-4 border-l-2 border-primary/30">
+                    <Quote className="w-4 h-4 text-muted-foreground/40 absolute -left-2 -top-1 bg-card" />
+                    <p className="text-sm text-foreground/80 italic leading-relaxed">
+                      "{story.quote}"
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-2 font-medium">
+                      — {story.person}
+                    </p>
+                  </div>
+                  <div className="pt-3 border-t border-border/50 flex items-baseline gap-2">
+                    <span className="text-2xl font-bold text-primary font-display">{story.metric}</span>
+                    <span className="text-xs text-muted-foreground">{story.metricLabel}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </section>
       </main>
     </div>
