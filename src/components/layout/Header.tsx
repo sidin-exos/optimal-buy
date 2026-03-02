@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Settings, LogIn, User, ChevronDown, CreditCard, LogOut, HelpCircle, FileText, Database } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Settings, LogIn, User, ChevronDown, CreditCard, LogOut, HelpCircle, FileText, Database, Menu } from "lucide-react";
 import ThemeToggle from "@/components/layout/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { NavLink } from "@/components/NavLink";
@@ -15,11 +15,21 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { getCategoryLabel, type Scenario } from "@/lib/scenarios";
+import { Separator } from "@/components/ui/separator";
 
 const Header = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const exosLogo = useThemedLogo();
 
   useEffect(() => {
@@ -33,6 +43,16 @@ const Header = () => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Close mobile menu on navigation
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname, location.search, location.hash]);
+
+  const mobileNavigate = (path: string) => {
+    setMobileOpen(false);
+    navigate(path);
+  };
 
   return (
     <header className="sticky top-0 z-50 glass-effect border-b border-border/50">
@@ -51,6 +71,7 @@ const Header = () => {
           </div>
         </NavLink>
         
+        {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-6">
           <div className="flex items-center gap-0.5">
             <button
@@ -166,7 +187,104 @@ const Header = () => {
 
         <div className="flex items-center gap-1">
           <ThemeToggle />
+
+          {/* Mobile hamburger */}
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="md:hidden">
+                <Menu className="h-5 w-5" />
+                <span className="sr-only">Open menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-72 overflow-y-auto">
+              <SheetHeader className="mb-4">
+                <SheetTitle className="font-display text-lg">EXOS</SheetTitle>
+              </SheetHeader>
+
+              <nav className="flex flex-col gap-1">
+                <button
+                  onClick={() => mobileNavigate("/")}
+                  className="text-sm font-medium text-foreground py-2.5 px-3 rounded-md hover:bg-muted text-left"
+                >
+                  Scenarios & Simulations
+                </button>
+                <button
+                  onClick={() => mobileNavigate("/market-intelligence")}
+                  className="text-sm font-medium text-foreground py-2.5 px-3 rounded-md hover:bg-muted text-left"
+                >
+                  Market Intelligence
+                </button>
+                <button
+                  onClick={() => mobileNavigate("/features")}
+                  className="text-sm font-medium text-foreground py-2.5 px-3 rounded-md hover:bg-muted text-left"
+                >
+                  Technology & Customer Success
+                </button>
+                <button
+                  onClick={() => mobileNavigate("/reports")}
+                  className="text-sm font-medium text-foreground py-2.5 px-3 rounded-md hover:bg-muted text-left"
+                >
+                  Dashboards & Analytics
+                </button>
+                <button
+                  onClick={() => mobileNavigate("/pricing")}
+                  className="text-sm font-medium text-foreground py-2.5 px-3 rounded-md hover:bg-muted text-left"
+                >
+                  Pricing & FAQ
+                </button>
+              </nav>
+
+              <Separator className="my-4" />
+
+              {user ? (
+                <div className="flex flex-col gap-1">
+                  <div className="px-3 py-2 mb-1">
+                    <p className="text-sm font-medium text-foreground truncate">{user.email}</p>
+                  </div>
+                  <button
+                    onClick={() => mobileNavigate("/account")}
+                    className="text-sm text-muted-foreground py-2.5 px-3 rounded-md hover:bg-muted text-left flex items-center gap-2"
+                  >
+                    <User className="w-4 h-4" /> My Account
+                  </button>
+                  <button
+                    onClick={() => mobileNavigate("/reports")}
+                    className="text-sm text-muted-foreground py-2.5 px-3 rounded-md hover:bg-muted text-left flex items-center gap-2"
+                  >
+                    <FileText className="w-4 h-4" /> My Reports
+                  </button>
+                  <button
+                    onClick={() => mobileNavigate("/pricing#faq")}
+                    className="text-sm text-muted-foreground py-2.5 px-3 rounded-md hover:bg-muted text-left flex items-center gap-2"
+                  >
+                    <HelpCircle className="w-4 h-4" /> Help & FAQ
+                  </button>
+                  <Separator className="my-2" />
+                  <button
+                    onClick={async () => {
+                      await supabase.auth.signOut();
+                      mobileNavigate("/");
+                    }}
+                    className="text-sm text-destructive py-2.5 px-3 rounded-md hover:bg-muted text-left flex items-center gap-2"
+                  >
+                    <LogOut className="w-4 h-4" /> Sign Out
+                  </button>
+                </div>
+              ) : (
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="w-full gap-2"
+                  onClick={() => mobileNavigate("/auth")}
+                >
+                  <LogIn className="w-4 h-4" />
+                  Sign In
+                </Button>
+              )}
+            </SheetContent>
+          </Sheet>
           
+          {/* Desktop user menu */}
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -235,7 +353,7 @@ const Header = () => {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <NavLink to="/auth">
+            <NavLink to="/auth" className="hidden md:inline-flex">
               <Button variant="default" size="sm" className="ml-2 gap-2">
                 <LogIn className="w-4 h-4" />
                 Sign In

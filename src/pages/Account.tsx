@@ -118,18 +118,18 @@ const Account = () => {
           {/* Account Info Section */}
           <Card className="card-elevated animate-fade-up">
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-2xl font-semibold text-primary-foreground">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-xl sm:text-2xl font-semibold text-primary-foreground flex-shrink-0">
                     {user?.email?.charAt(0).toUpperCase() || "U"}
                   </div>
-                  <div>
-                    <CardTitle className="font-display text-xl">
+                  <div className="min-w-0">
+                    <CardTitle className="font-display text-lg sm:text-xl truncate">
                       {user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User"}
                     </CardTitle>
-                    <CardDescription className="flex items-center gap-2">
-                      <User className="w-4 h-4" />
-                      {user?.email}
+                    <CardDescription className="flex items-center gap-2 truncate">
+                      <User className="w-4 h-4 flex-shrink-0" />
+                      <span className="truncate">{user?.email}</span>
                     </CardDescription>
                   </div>
                 </div>
@@ -137,7 +137,7 @@ const Account = () => {
                   variant="outline"
                   onClick={handleSignOut}
                   disabled={isSigningOut}
-                  className="gap-2"
+                  className="gap-2 w-full sm:w-auto"
                 >
                   {isSigningOut ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
