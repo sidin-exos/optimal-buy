@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { parseBody, requireString, requireArray, validationErrorResponse, ValidationError } from "../_shared/validate.ts";
+import { authenticateRequest } from "../_shared/auth.ts";
+import { LangSmithTracer } from "../_shared/langsmith.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,28 +9,20 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SYSTEM_PROMPT = `You are the EXOS Guide — a procurement strategy assistant embedded in the EXOS platform.
+const SYSTEM_PROMPT_BASE = `You are the EXOS Guide — a procurement strategy assistant embedded in the EXOS platform.
 
 Your role: Help users identify which procurement scenario or tool best fits their challenge, then navigate them there.
 
-## Available Pages & Scenarios
+## Available Pages
 
 ### Home (/)
 The main landing page with an overview of all capabilities.
 
-### Reports (/reports)
-The scenario wizard — users describe their procurement challenge and get a structured AI analysis. This is the primary entry point for running scenarios like:
-- **Volume Consolidation** — Combine spend across suppliers for leverage
-- **Cost Breakdown Analysis** — Decompose costs to find savings
-- **Make-or-Buy Decision** — Compare internal production vs. outsourcing
-- **Supplier Risk Assessment** — Evaluate supplier financial/operational risk
-- **Contract Negotiation Prep** — Build a negotiation strategy with BATNA
-- **Scope of Work (SOW) Analysis** — Review and optimize SOW documents
-- **Total Cost of Ownership (TCO)** — Full lifecycle cost comparison
-- **Scenario Comparison** — Compare multiple strategic options side-by-side
+### Reports & Scenario Wizard (/reports)
+The scenario wizard — users describe their procurement challenge and get a structured AI analysis. This is the primary entry point for running scenarios.
 
 ### Market Intelligence (/market-intelligence)
-Real-time market research powered by Perplexity. Query types: supplier intel, commodity pricing, industry trends, regulatory changes, M&A activity, risk signals.
+Real-time market research powered by AI. Query types: supplier intel, commodity pricing, industry trends, regulatory changes, M&A activity, risk signals.
 
 ### Features (/features)
 Overview of the Sentinel AI pipeline and platform capabilities.
@@ -36,11 +30,8 @@ Overview of the Sentinel AI pipeline and platform capabilities.
 ### Dashboard Showcase (/dashboards)
 Preview all available dashboard visualizations (Kraljic, Risk Matrix, TCO, etc.).
 
-### Pricing (/pricing)
-Subscription tiers and pricing information.
-
-### FAQ (/faq)
-Frequently asked questions about the platform.
+### Pricing & FAQ (/pricing)
+Subscription tiers, pricing information, and frequently asked questions. FAQ is at /pricing#faq and contact form at /pricing#contact.
 
 ## Conversation Guidelines
 
@@ -52,6 +43,22 @@ Frequently asked questions about the platform.
 6. When you do navigate, prefer /reports for scenario analysis and /market-intelligence for market data.
 7. Never fabricate procurement data or savings estimates — that's what the scenarios are for.
 8. Keep responses under 150 words unless the user asks for detail.`;
+
+function buildSystemPrompt(
+  currentPath: string,
+  scenarios?: { id: string; title: string; description: string }[]
+): string {
+  let scenarioBlock: string;
+
+  if (scenarios && scenarios.length > 0) {
+    const lines = scenarios.map((s) => `- **${s.title}** (${s.id}): ${s.description}`);
+    scenarioBlock = `\n\n## Available Scenarios (${scenarios.length} total)\nAll accessible via /reports:\n${lines.join("\n")}`;
+  } else {
+    scenarioBlock = "\n\n## Scenarios\nNo scenario catalog was provided. Direct users to /reports to browse the full list.";
+  }
+
+  return `${SYSTEM_PROMPT_BASE}${scenarioBlock}\n\nThe user is currently on: ${currentPath || "/"}`;
+}
 
 const TOOLS = [
   {
@@ -80,6 +87,22 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Authenticate
+  const authResult = await authenticateRequest(req);
+  if ("error" in authResult) {
+    return new Response(
+      JSON.stringify({ error: authResult.error.message }),
+      {
+        status: authResult.error.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  }
+  const { userId } = authResult.user;
+
+  // Init tracer
+  const tracer = new LangSmithTracer({ env: "production", feature: "chat-copilot" });
+
   try {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -92,7 +115,6 @@ serve(async (req) => {
     if (messages.length === 0) {
       throw new ValidationError("messages array must not be empty");
     }
-    // Validate each message has role and content strings
     for (const msg of messages) {
       if (typeof msg !== "object" || msg === null) throw new ValidationError("Each message must be an object");
       const m = msg as Record<string, unknown>;
@@ -101,8 +123,29 @@ serve(async (req) => {
     }
     const currentPath = requireString(body.currentPath, "currentPath", { optional: true, maxLength: 500 });
 
-    // Enrich system prompt with current location context
-    const systemWithContext = `${SYSTEM_PROMPT}\n\nThe user is currently on: ${currentPath || "/"}`;
+    // Parse optional scenarios array
+    const rawScenarios = requireArray(body.scenarios, "scenarios", { optional: true, maxLength: 50 });
+    let parsedScenarios: { id: string; title: string; description: string }[] | undefined;
+    if (rawScenarios && rawScenarios.length > 0) {
+      parsedScenarios = rawScenarios
+        .filter((s): s is Record<string, unknown> => typeof s === "object" && s !== null)
+        .map((s) => ({
+          id: String(s.id || ""),
+          title: String(s.title || ""),
+          description: String(s.description || ""),
+        }))
+        .filter((s) => s.id && s.title);
+    }
+
+    const systemPrompt = buildSystemPrompt(currentPath || "/", parsedScenarios);
+
+    // Create LangSmith parent run
+    const parentRunId = tracer.createRun("chat-copilot", "chain", {
+      userId,
+      currentPath: currentPath || "/",
+      messageCount: messages.length,
+      scenarioCount: parsedScenarios?.length || 0,
+    }, { tags: ["chat"] });
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -115,7 +158,7 @@ serve(async (req) => {
         body: JSON.stringify({
           model: "google/gemini-3-flash-preview",
           messages: [
-            { role: "system", content: systemWithContext },
+            { role: "system", content: systemPrompt },
             ...messages,
           ],
           tools: TOOLS,
@@ -126,10 +169,10 @@ serve(async (req) => {
 
     if (!response.ok) {
       if (response.status === 429) {
+        tracer.patchRun(parentRunId, undefined, "rate_limited");
         return new Response(
           JSON.stringify({
-            content:
-              "I'm receiving too many requests right now. Please try again in a moment.",
+            content: "I'm receiving too many requests right now. Please try again in a moment.",
           }),
           {
             status: 200,
@@ -138,10 +181,10 @@ serve(async (req) => {
         );
       }
       if (response.status === 402) {
+        tracer.patchRun(parentRunId, undefined, "credits_exhausted");
         return new Response(
           JSON.stringify({
-            content:
-              "AI usage credits have been exhausted. Please contact the administrator.",
+            content: "AI usage credits have been exhausted. Please contact the administrator.",
           }),
           {
             status: 200,
@@ -151,6 +194,7 @@ serve(async (req) => {
       }
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
+      tracer.patchRun(parentRunId, undefined, `AI gateway error: ${response.status}`);
       throw new Error(`AI gateway error: ${response.status}`);
     }
 
@@ -158,13 +202,13 @@ serve(async (req) => {
     const choice = data.choices?.[0];
 
     if (!choice) {
+      tracer.patchRun(parentRunId, undefined, "No response from AI model");
       throw new Error("No response from AI model");
     }
 
     let content = choice.message?.content || "";
     let action: { type: string; payload: string } | undefined;
 
-    // Check for tool calls (navigation)
     const toolCalls = choice.message?.tool_calls;
     if (toolCalls && toolCalls.length > 0) {
       for (const tc of toolCalls) {
@@ -181,10 +225,16 @@ serve(async (req) => {
       }
     }
 
-    // If the model only returned tool calls with no text, provide a default message
     if (!content && action) {
       content = "Let me take you there.";
     }
+
+    // Patch LangSmith with success
+    tracer.patchRun(parentRunId, {
+      content,
+      hasAction: !!action,
+      actionPath: action?.payload,
+    });
 
     return new Response(JSON.stringify({ content, action }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -194,13 +244,11 @@ serve(async (req) => {
       return validationErrorResponse(error.message);
     }
     console.error("chat-copilot error:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
     return new Response(
       JSON.stringify({
-        content:
-          "I'm having trouble connecting right now. Please try again in a moment.",
+        content: "I'm having trouble connecting right now. Please try again in a moment.",
         error: errorMessage,
       }),
       {

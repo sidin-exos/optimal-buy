@@ -14,7 +14,6 @@ interface ChatMessageProps {
   message: Message;
   isLatest: boolean;
   allMessages?: Message[];
-  
 }
 
 /** Minimal markdown: **bold**, - lists, \n\n paragraphs */
@@ -25,7 +24,6 @@ function renderMarkdown(text: string) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // List item
     if (/^[-•]\s/.test(line)) {
       parts.push(
         <div key={i} className="flex gap-1.5 ml-1">
@@ -36,19 +34,16 @@ function renderMarkdown(text: string) {
       continue;
     }
 
-    // Horizontal rule
     if (/^---+$/.test(line.trim())) {
       parts.push(<hr key={i} className="my-2 border-border/40" />);
       continue;
     }
 
-    // Empty line = spacing
     if (line.trim() === '') {
       parts.push(<div key={i} className="h-1.5" />);
       continue;
     }
 
-    // Normal paragraph
     parts.push(
       <p key={i} className="leading-relaxed">
         {renderInline(line)}
@@ -88,6 +83,13 @@ export function ChatMessage({ message, isLatest, allMessages }: ChatMessageProps
   const [displayedText, setDisplayedText] = useState(shouldAnimate ? '' : message.content);
   const [feedbackGiven, setFeedbackGiven] = useState<'helpful' | 'not_helpful' | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setIsAuthenticated(!!data.user);
+    });
+  }, []);
 
   useEffect(() => {
     if (!shouldAnimate) {
@@ -109,11 +111,18 @@ export function ChatMessage({ message, isLatest, allMessages }: ChatMessageProps
 
   const handleFeedback = useCallback(async (rating: 'helpful' | 'not_helpful') => {
     setFeedbackGiven(rating);
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) {
+      toast.error('Please sign in to submit feedback');
+      setFeedbackGiven(null);
+      return;
+    }
     const context = (allMessages ?? []).slice(-6).map(({ role, content }) => ({ role, content }));
     const { error } = await supabase.from('chat_feedback' as any).insert({
       message_id: message.id,
       rating,
       conversation_messages: context,
+      user_id: userData.user.id,
     });
     if (error) {
       console.error('Feedback error:', error);
@@ -130,6 +139,8 @@ export function ChatMessage({ message, isLatest, allMessages }: ChatMessageProps
     toast.success('Copied to clipboard');
     setTimeout(() => setCopied(false), 2000);
   }, [message.content]);
+
+  const showFeedbackButtons = !isUser && isAuthenticated;
 
   return (
     <motion.div
@@ -157,7 +168,7 @@ export function ChatMessage({ message, isLatest, allMessages }: ChatMessageProps
           <p className="text-[10px] text-muted-foreground">
             {timeFormatter.format(message.timestamp)}
           </p>
-          {!isUser && (
+          {showFeedbackButtons && (
             <div className="flex items-center gap-0.5">
               <button
                 onClick={() => handleFeedback('helpful')}
@@ -191,6 +202,16 @@ export function ChatMessage({ message, isLatest, allMessages }: ChatMessageProps
                 {copied ? <Check className="w-3.5 h-3.5 text-primary" /> : <Copy className="w-3.5 h-3.5" />}
               </button>
             </div>
+          )}
+          {!isUser && !showFeedbackButtons && isAuthenticated === true && null}
+          {!isUser && !showFeedbackButtons && isAuthenticated !== null && (
+            <button
+              onClick={handleCopy}
+              className="p-1 rounded-md text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+              title="Copy"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-primary" /> : <Copy className="w-3.5 h-3.5" />}
+            </button>
           )}
         </div>
       </div>

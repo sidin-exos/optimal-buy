@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { scenarios } from '@/lib/scenarios';
 
 export type ChatRole = 'user' | 'assistant' | 'system';
 
@@ -12,12 +13,17 @@ export interface ChatResponse {
   action?: { type: 'NAVIGATE'; payload: string };
 }
 
+// Build a lightweight scenario catalog for the edge function
+const scenarioCatalog = scenarios
+  .filter((s) => s.status === 'available')
+  .map(({ id, title, description }) => ({ id, title, description }));
+
 export async function getAIResponse(
   messages: ChatMessage[],
   currentPath: string
 ): Promise<ChatResponse> {
   const { data, error } = await supabase.functions.invoke('chat-copilot', {
-    body: { messages, currentPath },
+    body: { messages, currentPath, scenarios: scenarioCatalog },
   });
 
   if (error) {
