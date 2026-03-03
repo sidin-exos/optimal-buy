@@ -21,6 +21,7 @@ export type Database = {
           id: string
           message_id: string
           rating: string
+          user_id: string | null
         }
         Insert: {
           conversation_messages?: Json | null
@@ -28,6 +29,7 @@ export type Database = {
           id?: string
           message_id: string
           rating: string
+          user_id?: string | null
         }
         Update: {
           conversation_messages?: Json | null
@@ -35,6 +37,7 @@ export type Database = {
           id?: string
           message_id?: string
           rating?: string
+          user_id?: string | null
         }
         Relationships: []
       }
