@@ -192,7 +192,7 @@ export function ChatWidget() {
 
         {/* Footer */}
         <div className="px-4 py-3 border-t border-border/50" style={{ paddingBottom: isMobile ? `max(0.75rem, env(safe-area-inset-bottom))` : undefined }}>
-          <div className="flex gap-2">
+          <div className="flex items-end gap-2">
             <Textarea
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
