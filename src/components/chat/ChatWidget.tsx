@@ -86,14 +86,16 @@ export function ChatWidget() {
           ))}
         </div>
         <div className="flex gap-2">
-          <div className="flex items-center gap-2 flex-1 relative">
-            <Sparkles className="w-4 h-4 text-primary absolute left-3 pointer-events-none" />
-            <Input
+          <div className="flex items-end gap-2 flex-1 relative">
+            <Sparkles className="w-4 h-4 text-primary absolute left-3 top-2.5 pointer-events-none" />
+            <Textarea
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
+              onInput={handleAutoResize}
               onKeyDown={handleKeyDown}
               placeholder="Describe your procurement challenge..."
-              className="flex-1 h-10 text-sm pl-9"
+              className="flex-1 min-h-[40px] max-h-24 resize-none text-sm pl-9 py-2"
+              rows={1}
             />
           </div>
           <Button
