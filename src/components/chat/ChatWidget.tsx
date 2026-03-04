@@ -193,12 +193,14 @@ export function ChatWidget() {
         {/* Footer */}
         <div className="px-4 py-3 border-t border-border/50" style={{ paddingBottom: isMobile ? `max(0.75rem, env(safe-area-inset-bottom))` : undefined }}>
           <div className="flex gap-2">
-            <Input
+            <Textarea
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
+              onInput={handleAutoResize}
               onKeyDown={handleKeyDown}
               placeholder="Describe your procurement challenge..."
-              className="flex-1 h-9 text-sm"
+              className="flex-1 min-h-[36px] max-h-24 resize-none text-sm py-2"
+              rows={1}
               disabled={isTyping}
             />
             <Button
