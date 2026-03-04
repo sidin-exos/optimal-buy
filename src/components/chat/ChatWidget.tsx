@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Send, Bot, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useExosChat } from '@/hooks/use-exos-chat';
 import { ChatMessage } from './ChatMessage';
@@ -50,11 +50,17 @@ export function ChatWidget() {
     setTimeout(() => sendMessage(text), 100);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const handleAutoResize = (e: React.FormEvent<HTMLTextAreaElement>) => {
+    const target = e.currentTarget;
+    target.style.height = 'auto';
+    target.style.height = `${target.scrollHeight}px`;
   };
 
   // Inline trigger bar — always-visible input
@@ -80,14 +86,16 @@ export function ChatWidget() {
           ))}
         </div>
         <div className="flex gap-2">
-          <div className="flex items-center gap-2 flex-1 relative">
-            <Sparkles className="w-4 h-4 text-primary absolute left-3 pointer-events-none" />
-            <Input
+          <div className="flex items-end gap-2 flex-1 relative">
+            <Sparkles className="w-4 h-4 text-primary absolute left-3 top-2.5 pointer-events-none" />
+            <Textarea
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
+              onInput={handleAutoResize}
               onKeyDown={handleKeyDown}
               placeholder="Describe your procurement challenge..."
-              className="flex-1 h-10 text-sm pl-9"
+              className="flex-1 min-h-[40px] max-h-24 resize-none text-sm pl-9 py-2"
+              rows={1}
             />
           </div>
           <Button
@@ -184,13 +192,15 @@ export function ChatWidget() {
 
         {/* Footer */}
         <div className="px-4 py-3 border-t border-border/50" style={{ paddingBottom: isMobile ? `max(0.75rem, env(safe-area-inset-bottom))` : undefined }}>
-          <div className="flex gap-2">
-            <Input
+          <div className="flex items-end gap-2">
+            <Textarea
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
+              onInput={handleAutoResize}
               onKeyDown={handleKeyDown}
               placeholder="Describe your procurement challenge..."
-              className="flex-1 h-9 text-sm"
+              className="flex-1 min-h-[36px] max-h-24 resize-none text-sm py-2"
+              rows={1}
               disabled={isTyping}
             />
             <Button
