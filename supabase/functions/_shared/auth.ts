@@ -50,7 +50,7 @@ export async function authenticateRequest(
 }
 
 /**
- * Check if a user has admin role via the user_roles table.
+ * Check if a user has admin role via the profiles table.
  */
 export async function requireAdmin(userId: string): Promise<boolean> {
   const supabase = createClient(
@@ -59,9 +59,9 @@ export async function requireAdmin(userId: string): Promise<boolean> {
   );
 
   const { data } = await supabase
-    .from("user_roles")
+    .from("profiles")
     .select("role")
-    .eq("user_id", userId)
+    .eq("id", userId)
     .eq("role", "admin")
     .maybeSingle();
 

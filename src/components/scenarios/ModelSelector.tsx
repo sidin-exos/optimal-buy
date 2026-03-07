@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, Zap, Brain, Sparkles } from "lucide-react";
+import { ChevronDown, Cpu, Zap, Brain, Sparkles } from "lucide-react";
 import {
   Select,
   SelectContent,
